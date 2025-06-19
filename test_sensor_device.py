@@ -37,7 +37,7 @@ def test_das_capability_and_storage():
         # Wait for device to stabilize
         time.sleep(2)
         
-        print(f"📊 Monitoring for DAS initialization and storage info...")
+        print("📊 Monitoring for DAS initialization and storage info...")
         
         start_time = time.time()
         data_logged_count = 0
@@ -266,7 +266,7 @@ def test_ble_capability():
                       capture_output=True, text=True, timeout=5)
         
         if ble_devices:
-            print(f"✅ Found BLE sensor devices:")
+            print("✅ Found BLE sensor devices:")
             for device in ble_devices:
                 print(f"   • {device}")
             ble_service_active = True
