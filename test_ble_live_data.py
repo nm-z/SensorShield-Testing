@@ -15,8 +15,19 @@ import time
 import json
 import sys
 import argparse
-import serial
-import requests
+try:
+    import serial  # type: ignore
+    SERIAL_AVAILABLE = True
+except ImportError:
+    serial = None
+    SERIAL_AVAILABLE = False
+
+try:
+    import requests  # type: ignore
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    requests = None
+    REQUESTS_AVAILABLE = False
 from datetime import datetime
 from pathlib import Path
 from rich.console import Console
@@ -95,22 +106,18 @@ class SensorDataRetriever:
     
     def check_serial_tools(self):
         """Check if serial tools are available"""
-        try:
-            import serial
-            return True
-        except ImportError:
-            return False
+        return SERIAL_AVAILABLE
     
     def check_network_tools(self):
         """Check if network tools are available"""
-        try:
-            import requests
-            return True
-        except ImportError:
-            return False
+        return REQUESTS_AVAILABLE
     
     async def mode_flash(self):
         """Flash/LittleFS data retrieval mode"""
+        if not SERIAL_AVAILABLE:
+            self.console.print("❌ Serial tools not available")
+            return False
+
         self.console.print("💾 [bold blue]Flash/LittleFS Data Retrieval Mode[/bold blue]")
         
         port = self.args.addr if self.args.addr else self.default_serial_port
@@ -185,6 +192,10 @@ class SensorDataRetriever:
     
     async def mode_serial(self):
         """Serial monitoring mode"""
+        if not SERIAL_AVAILABLE:
+            self.console.print("❌ Serial tools not available")
+            return False
+
         self.console.print("🔗 [bold blue]Serial Monitoring Mode[/bold blue]")
         
         port = self.args.addr if self.args.addr else self.default_serial_port
@@ -243,6 +254,10 @@ class SensorDataRetriever:
     
     async def mode_access_point(self):
         """WiFi Access Point mode"""
+        if not REQUESTS_AVAILABLE:
+            self.console.print("❌ Network tools not available")
+            return False
+
         self.console.print("📶 [bold blue]WiFi Access Point Mode[/bold blue]")
         
         ip = self.args.addr if self.args.addr else self.default_ap_ip
