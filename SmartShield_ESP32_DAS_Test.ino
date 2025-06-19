@@ -116,7 +116,10 @@ bool initSPIFFS() {
     Serial.println("ERROR:SPIFFS_MOUNT_FAILED");
     return false;
   }
-  
+
+  Serial.println("STATUS:SPIFFS_INITIALIZED");
+  Serial.println("SPIFFS initialized");
+
   // Read and increment boot count
   File bootFile = SPIFFS.open(bootCountFileName, FILE_READ);
   if (bootFile) {
@@ -132,9 +135,14 @@ bool initSPIFFS() {
     bootFile.close();
   }
   
-  Serial.printf("SPIFFS:TOTAL:%u,USED:%u,FREE:%u,BOOT:%d\n", 
-                SPIFFS.totalBytes(), SPIFFS.usedBytes(), 
-                SPIFFS.totalBytes() - SPIFFS.usedBytes(), bootCount);
+  size_t totalBytes = SPIFFS.totalBytes();
+  size_t usedBytes  = SPIFFS.usedBytes();
+
+  Serial.printf("Total space: %u bytes\n", totalBytes);
+  Serial.printf("Storage Used: %u/%u bytes\n", usedBytes, totalBytes);
+  Serial.printf("SPIFFS:TOTAL:%u,USED:%u,FREE:%u,BOOT:%d\n",
+                totalBytes, usedBytes,
+                totalBytes - usedBytes, bootCount);
   return true;
 }
 
@@ -380,9 +388,10 @@ void logSensorData(const SensorData& data) {
   serializeJson(doc, jsonString);
   file.println(jsonString);
   file.close();
-  
+
   // Simplified output for Python parsing
   Serial.println("Data logged: " + jsonString);
+  Serial.printf("Storage Used: %u/%u bytes\n", SPIFFS.usedBytes(), SPIFFS.totalBytes());
 }
 
 String readStoredData(int maxEntries = 50) {
