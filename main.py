@@ -639,6 +639,11 @@ Examples:
                 "Interactive menu requested but InquirerPy is not installed."
             )
 
+        cli_params = {
+            "qmark": "?",
+            "amark": "\u2713",
+            "pointer": ">",
+        }
         selection = (
             inquirer.select(
                 message="Select Data Retrieval Mode",
@@ -648,7 +653,8 @@ Examples:
                     "Bluetooth",
                     "Exit",
                 ],
-                pointer=">",
+                instruction="Use arrows to move, type to filter",
+                **cli_params,
             ).execute()
         )
 
@@ -658,7 +664,8 @@ Examples:
             args.serial_port = True
             port = (
                 inquirer.text(
-                    message=f"Serial port (default {SensorDataRetriever(None).default_serial_port}): "
+                    message=f"Serial port (default {SensorDataRetriever(None).default_serial_port}): ",
+                    **cli_params,
                 ).execute().strip()
             )
             if port:
@@ -667,7 +674,8 @@ Examples:
             args.wifi = True
             ip = (
                 inquirer.text(
-                    message=f"AP IP (default {SensorDataRetriever(None).default_ap_ip}): "
+                    message=f"AP IP (default {SensorDataRetriever(None).default_ap_ip}): ",
+                    **cli_params,
                 ).execute().strip()
             )
             if ip:
@@ -678,12 +686,13 @@ Examples:
         dump_choice = inquirer.confirm(
             message="Dump stored data instead of live stream?",
             default=False,
+            **cli_params,
         ).execute()
         if dump_choice:
             args.dump = True
 
         out_file = (
-            inquirer.text(message="Output file (leave blank for none): ")
+            inquirer.text(message="Output file (leave blank for none): ", **cli_params)
             .execute()
             .strip()
         )
@@ -691,7 +700,8 @@ Examples:
             args.output = out_file
         t_val = (
             inquirer.text(
-                message=f"Timeout in seconds (default {args.timeout}): "
+                message=f"Timeout in seconds (default {args.timeout}): ",
+                **cli_params,
             ).execute().strip()
         )
         if t_val:
