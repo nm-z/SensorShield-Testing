@@ -50,6 +50,7 @@ struct SensorData {
 
 // Storage configuration
 const char* dataFileName = "/sensor_data.json";
+const char* bootCountFileName = "/boot_count.txt";
 unsigned long lastLogTime = 0;
 const unsigned long LOG_INTERVAL = 5000; // Log every 5 seconds
 int bootCount = 1;
@@ -79,15 +80,61 @@ class MyServerCallbacks: public BLEServerCallbacks {
     }
 };
 
+// BLE Characteristic Callbacks for command handling
+class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic* pCharacteristic) {
+      String value = pCharacteristic->getValue().c_str();
+      
+      if (value == "DUMP_ALL") {
+        // Send stored data dump via BLE
+        pCharacteristic->setValue("DUMP_START");
+        pCharacteristic->notify();
+        delay(50);
+        
+        File file = SPIFFS.open(dataFileName, FILE_READ);
+        if (file) {
+          while (file.available()) {
+            String line = file.readStringUntil('\n');
+            line.trim();
+            if (line.length() > 0) {
+              pCharacteristic->setValue(line.c_str());
+              pCharacteristic->notify();
+              delay(50);  // Small delay to prevent BLE overflow
+            }
+          }
+          file.close();
+        }
+        
+        pCharacteristic->setValue("DUMP_END");
+        pCharacteristic->notify();
+      }
+    }
+};
+
 bool initSPIFFS() {
   if (!SPIFFS.begin(true)) {
     Serial.println("ERROR:SPIFFS_MOUNT_FAILED");
     return false;
   }
   
-  Serial.printf("SPIFFS:TOTAL:%u,USED:%u,FREE:%u\n", 
+  // Read and increment boot count
+  File bootFile = SPIFFS.open(bootCountFileName, FILE_READ);
+  if (bootFile) {
+    bootCount = bootFile.parseInt();
+    bootFile.close();
+  }
+  
+  bootCount++;
+  
+  bootFile = SPIFFS.open(bootCountFileName, FILE_WRITE);
+  if (bootFile) {
+    bootFile.println(bootCount);
+    bootFile.close();
+  }
+  
+  Serial.printf("SPIFFS:TOTAL:%u,USED:%u,FREE:%u,BOOT:%d\n", 
                 SPIFFS.totalBytes(), SPIFFS.usedBytes(), 
-                SPIFFS.totalBytes() - SPIFFS.usedBytes());
+                SPIFFS.totalBytes() - SPIFFS.usedBytes(), bootCount);
   return true;
 }
 
@@ -104,6 +151,7 @@ bool initBLE() {
                       BLECharacteristic::PROPERTY_NOTIFY
                     );
   pCharacteristic->addDescriptor(new BLE2902());
+  pCharacteristic->setCallbacks(new MyCharacteristicCallbacks());
   pService->start();
   
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
@@ -269,18 +317,8 @@ int readTamperState() {
     return pinState == LOW ? 1 : 0;
   }
   
-  // Fallback: Check for motion using accelerometer-like behavior
-  // This could be expanded to use actual accelerometer if available
-  static int lastAccelReading = 0;
-  int currentTime = millis();
-  int accelNoise = (currentTime / 1000) % 4;  // Simulate basic movement detection
-  
-  if (accelNoise != lastAccelReading) {
-    lastAccelReading = accelNoise;
-    return 1;  // Motion detected
-  }
-  
-  return 0;  // No motion
+  // No fallback sensor available - return error state
+  return -1;  // Indicate tamper sensor not available
 }
 
 void broadcastBLEData(const SensorData& data) {

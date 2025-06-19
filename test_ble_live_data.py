@@ -192,10 +192,11 @@ class SensorDataRetriever:
         try:
             ser = serial.Serial(port, 115200, timeout=1)
             self.console.print(f"🔌 Connected to {port}")
-            self.console.print("📡 [bold cyan]Monitoring real-time data (Press Ctrl+C to stop)...[/bold cyan]")
+            self.console.print(f"📡 [bold cyan]Monitoring real-time data for {self.args.timeout}s (Press Ctrl+C to stop)...[/bold cyan]")
             
+            start_time = time.time()
             with Live(self.create_status_tree("serial"), refresh_per_second=2) as live:
-                while self.running:
+                while self.running and (time.time() - start_time < self.args.timeout):
                     if ser.in_waiting > 0:
                         try:
                             line = ser.readline().decode('utf-8', errors='ignore').strip()
@@ -226,6 +227,11 @@ class SensorDataRetriever:
                     
                     live.update(self.create_status_tree("serial"))
                     await asyncio.sleep(0.1)
+                    
+            if not self.running:
+                self.console.print("🛑 Stopped by user")
+            else:
+                self.console.print(f"⏰ Timeout reached ({self.args.timeout}s)")
                     
             ser.close()
             
@@ -322,13 +328,19 @@ class SensorDataRetriever:
                 await client.start_notify(self.ble_characteristic_uuid, notification_handler)
                 self.console.print("🔔 Started BLE notifications")
                 
-                # Monitor live data
-                self.console.print("📊 [bold cyan]Monitoring live BLE data (Press Ctrl+C to stop)...[/bold cyan]")
+                # Monitor live data with timeout
+                self.console.print(f"📊 [bold cyan]Monitoring live BLE data for {self.args.timeout}s (Press Ctrl+C to stop)...[/bold cyan]")
                 
+                start_time = time.time()
                 with Live(self.create_status_tree("ble-live"), refresh_per_second=2) as live:
-                    while self.running:
+                    while self.running and (time.time() - start_time < self.args.timeout):
                         live.update(self.create_status_tree("ble-live"))
                         await asyncio.sleep(1)
+                
+                if not self.running:
+                    self.console.print("🛑 Stopped by user")
+                else:
+                    self.console.print(f"⏰ Timeout reached ({self.args.timeout}s)")
                 
                 return True
                 
@@ -344,12 +356,68 @@ class SensorDataRetriever:
             
         self.console.print("🔵 [bold blue]BLE Dump Mode[/bold blue]")
         
-        # This mode would send DUMP command via BLE and collect all stored data
-        # For now, fall back to live mode since the current firmware doesn't implement dump command
-        self.console.print("⚠️ BLE dump command not implemented in current firmware")
-        self.console.print("🔄 Falling back to BLE live mode...")
+        # Find target device
+        device = await self.find_target_device()
+        if not device:
+            return False
         
-        return await self.mode_ble_live()
+        try:
+            async with BleakClient(device.address) as client:
+                self.connected_device = f"{device.name} ({device.address})"
+                self.console.print(f"✅ Connected to {self.connected_device}")
+                
+                # Send DUMP_ALL command via BLE
+                dump_command = "DUMP_ALL"
+                await client.write_gatt_char(self.ble_characteristic_uuid, dump_command.encode())
+                self.console.print("📤 Sent DUMP_ALL command via BLE")
+                
+                # Set up notification handler for dump response
+                dump_started = False
+                dump_ended = False
+                
+                def dump_handler(sender, data):
+                    nonlocal dump_started, dump_ended
+                    try:
+                        decoded = data.decode('utf-8').strip()
+                        
+                        if decoded == "DUMP_START":
+                            dump_started = True
+                            self.console.print("📡 Receiving BLE data dump...")
+                        elif decoded == "DUMP_END":
+                            dump_ended = True
+                            self.console.print("✅ BLE data dump completed")
+                        elif dump_started and decoded.startswith('{'):
+                            try:
+                                entry = json.loads(decoded)
+                                entry['_timestamp'] = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                                self.data_log.append(entry)
+                                self.console.print(f"📊 [dim]Entry {len(self.data_log)}: {entry.get('timestamp', 'Unknown')}[/dim]")
+                            except json.JSONDecodeError:
+                                pass
+                    except Exception as e:
+                        self.console.print(f"⚠️ BLE data decode error: {e}")
+                
+                # Start notifications for dump
+                await client.start_notify(self.ble_characteristic_uuid, dump_handler)
+                
+                # Wait for dump completion with timeout
+                start_time = time.time()
+                while not dump_ended and (time.time() - start_time < self.args.timeout):
+                    await asyncio.sleep(0.5)
+                
+                if not dump_started:
+                    self.console.print("⚠️ No DUMP_START received - device may not support BLE DUMP_ALL command")
+                    self.console.print("🔄 Falling back to BLE live mode...")
+                    return await self.mode_ble_live()
+                elif not dump_ended:
+                    self.console.print(f"⏰ Dump timeout reached ({self.args.timeout}s)")
+                
+                return len(self.data_log) > 0
+                
+        except Exception as e:
+            self.console.print(f"❌ BLE dump mode failed: {e}")
+            self.console.print("🔄 Falling back to BLE live mode...")
+            return await self.mode_ble_live()
     
     async def find_target_device(self):
         """Find the target BLE device"""
