@@ -15,6 +15,100 @@ import requests
 import serial
 
 
+def _handle_das_capability(line, timestamp, das_confirmed):
+    if any(
+        phrase in line
+        for phrase in [
+            "SPIFFS initialized",
+            "filesystem",
+            "DAS CAPABILITIES",
+            "Storage Used:",
+            "Data logged:",
+        ]
+    ):
+        if not das_confirmed and any(
+            phrase in line
+            for phrase in ["SPIFFS", "filesystem", "Storage Used:"]
+        ):
+            das_confirmed = True
+            print(
+                f"✅ [{timestamp}] DAS CAPABILITY CONFIRMED: SPIFFS filesystem operational"
+            )
+    return das_confirmed
+
+
+def _handle_total_space(line, timestamp, storage_capacity, spiffs_info):
+    if "Total space:" in line:
+        try:
+            storage_capacity = int(
+                line.split(":")[1].strip().split()[0]
+            )
+            spiffs_info["total"] = storage_capacity
+            print(
+                f"✅ [{timestamp}] STORAGE CAPACITY DETECTED: {storage_capacity:,} bytes"
+            )
+        except Exception:
+            pass
+    return storage_capacity, spiffs_info
+
+
+def _handle_initial_storage_used(line, timestamp, storage_capacity, spiffs_info):
+    if "Storage Used:" in line and not storage_capacity:
+        try:
+            parts = line.split("/")
+            total = int(parts[1].split()[0])
+            if total > 1000000:
+                storage_capacity = total
+                spiffs_info["total"] = total
+                print(
+                    f"✅ [{timestamp}] STORAGE CAPACITY DETECTED: {storage_capacity:,} bytes"
+                )
+        except Exception:
+            pass
+    return storage_capacity, spiffs_info
+
+
+def _handle_data_logged(line, timestamp, data_logged_count):
+    if "Data logged:" in line:
+        data_logged_count += 1
+        if data_logged_count == 1:
+            print(
+                f"✅ [{timestamp}] FIRST DATA LOG CONFIRMED: Storage writing works!"
+            )
+        elif data_logged_count <= 3:
+            print(
+                f"✅ [{timestamp}] Data log #{data_logged_count} successful"
+            )
+    return data_logged_count
+
+
+def _handle_storage_usage(line, timestamp, spiffs_info):
+    if "Storage Used:" in line:
+        try:
+            parts = line.split("/")
+            used = int(parts[0].split(":")[-1].strip())
+            total = int(parts[1].split()[0])
+            spiffs_info["used"] = used
+            spiffs_info["total"] = total
+            print(
+                f"📊 [{timestamp}] Storage usage: {used:,}/{total:,} bytes ("
+                f"{(used / total * 100):.1f}%)"
+            )
+        except Exception:
+            pass
+    return spiffs_info
+
+
+def _process_serial_line(line, timestamp, das_confirmed, storage_capacity, spiffs_info, data_logged_count):
+    das_confirmed = _handle_das_capability(line, timestamp, das_confirmed)
+    storage_capacity, spiffs_info = _handle_total_space(line, timestamp, storage_capacity, spiffs_info)
+    storage_capacity, spiffs_info = _handle_initial_storage_used(line, timestamp, storage_capacity, spiffs_info)
+    data_logged_count = _handle_data_logged(line, timestamp, data_logged_count)
+    spiffs_info = _handle_storage_usage(line, timestamp, spiffs_info)
+
+    return das_confirmed, storage_capacity, spiffs_info, data_logged_count
+
+
 def test_das_capability_and_storage():
     """Test DAS capability and determine maximum storage - TODO Tasks 1 & 2"""
 
@@ -29,6 +123,7 @@ def test_das_capability_and_storage():
     das_confirmed = False
     storage_capacity = 0
     spiffs_info = {}
+    data_logged_count = 0
 
     try:
         # Connect to the ESP32
@@ -41,7 +136,6 @@ def test_das_capability_and_storage():
         print("📊 Monitoring for DAS initialization and storage info...")
 
         start_time = time.time()
-        data_logged_count = 0
 
         while time.time() - start_time < test_duration:
             if ser.in_waiting > 0:
@@ -49,77 +143,11 @@ def test_das_capability_and_storage():
                     line = ser.readline().decode("utf-8", errors="ignore").strip()
                     if line:
                         timestamp = datetime.now().strftime("%H:%M:%S")
-
-                        # Check for DAS capability indicators
-                        if any(
-                            phrase in line
-                            for phrase in [
-                                "SPIFFS initialized",
-                                "filesystem",
-                                "DAS CAPABILITIES",
-                                "Storage Used:",
-                                "Data logged:",
-                            ]
-                        ):
-                            if not das_confirmed and any(
-                                phrase in line
-                                for phrase in ["SPIFFS", "filesystem", "Storage Used:"]
-                            ):
-                                das_confirmed = True
-                                print(
-                                    f"✅ [{timestamp}] DAS CAPABILITY CONFIRMED: SPIFFS filesystem operational"
-                                )
-
-                        if "Total space:" in line:
-                            try:
-                                storage_capacity = int(
-                                    line.split(":")[1].strip().split()[0]
-                                )
-                                spiffs_info["total"] = storage_capacity
-                                print(
-                                    f"✅ [{timestamp}] STORAGE CAPACITY DETECTED: {storage_capacity:,} bytes"
-                                )
-                            except Exception:
-                                pass
-
-                        elif "Storage Used:" in line and not storage_capacity:
-                            # Extract storage capacity from usage line
-                            try:
-                                parts = line.split("/")
-                                total = int(parts[1].split()[0])
-                                if total > 1000000:  # Reasonable storage size
-                                    storage_capacity = total
-                                    spiffs_info["total"] = total
-                                    print(
-                                        f"✅ [{timestamp}] STORAGE CAPACITY DETECTED: {storage_capacity:,} bytes"
-                                    )
-                            except Exception:
-                                pass
-
-                        elif "Data logged:" in line:
-                            data_logged_count += 1
-                            if data_logged_count == 1:
-                                print(
-                                    f"✅ [{timestamp}] FIRST DATA LOG CONFIRMED: Storage writing works!"
-                                )
-                            elif data_logged_count <= 3:
-                                print(
-                                    f"✅ [{timestamp}] Data log #{data_logged_count} successful"
-                                )
-
-                        elif "Storage Used:" in line:
-                            # Extract storage usage info
-                            try:
-                                parts = line.split("/")
-                                used = int(parts[0].split(":")[-1].strip())
-                                total = int(parts[1].split()[0])
-                                spiffs_info["used"] = used
-                                spiffs_info["total"] = total
-                                print(
-                                    f"📊 [{timestamp}] Storage usage: {used:,}/{total:,} bytes ({(used/total*100):.1f}%)"
-                                )
-                            except Exception:
-                                pass
+                        das_confirmed, storage_capacity, spiffs_info, data_logged_count = \
+                            _process_serial_line(
+                                line, timestamp, das_confirmed, storage_capacity,
+                                spiffs_info, data_logged_count
+                            )
 
                 except Exception as e:
                     print(f"⚠️  Decode error: {e}")
@@ -141,7 +169,7 @@ def test_das_capability_and_storage():
         print("\n📋 TASK 2 CONFIRMATION - Maximum Storage:")
         if storage_capacity > 0:
             print(
-                f"✅ MAXIMUM STORAGE CAPACITY: {storage_capacity:,} bytes ({storage_capacity/1024/1024:.2f} MB)"
+                f"✅ MAXIMUM STORAGE CAPACITY: {storage_capacity:,} bytes ({storage_capacity / 1024 / 1024:.2f} MB)"
             )
             estimated_readings = storage_capacity // 251  # ~251 bytes per JSON reading
             print(
@@ -346,6 +374,33 @@ def test_ble_capability():
     return True, ble_hardware_confirmed, ble_service_active
 
 
+def _process_workflow_serial_line(line, workflow_results, sensor_readings):
+    if "=== SENSOR READING ===" in line:
+        workflow_results["data_collection"] = True
+        print("✅ Real-time sensor data collection active")
+
+    elif "Data logged:" in line and "{" in line:
+        workflow_results["storage_writes"] += 1
+        try:
+            json_start = line.find("{")
+            json_data = line[json_start:]
+            data = json.loads(json_data)
+            sensor_readings.append(data)
+            print(
+                f"✅ Storage write #{workflow_results['storage_writes']}: Data persisted to flash"
+            )
+        except Exception:
+            pass
+
+    elif "Temperature:" in line:
+        workflow_results["usb_monitoring"] = True
+        print(f"✅ USB monitoring active: {line}")
+
+    elif "Web server" in line and "started" in line:
+        workflow_results["web_access_ready"] = True
+        print("✅ Web server for data access is ready")
+
+
 def demonstrate_das_workflow():
     """Demonstrate complete DAS workflow - TODO Task 5"""
 
@@ -378,32 +433,7 @@ def demonstrate_das_workflow():
         while time.time() - start_time < demo_duration:
             if ser.in_waiting > 0:
                 line = ser.readline().decode("utf-8", errors="ignore").strip()
-
-                if "=== SENSOR READING ===" in line:
-                    workflow_results["data_collection"] = True
-                    print("✅ Real-time sensor data collection active")
-
-                elif "Data logged:" in line and "{" in line:
-                    workflow_results["storage_writes"] += 1
-                    # Parse JSON data
-                    try:
-                        json_start = line.find("{")
-                        json_data = line[json_start:]
-                        data = json.loads(json_data)
-                        sensor_readings.append(data)
-                        print(
-                            f"✅ Storage write #{workflow_results['storage_writes']}: Data persisted to flash"
-                        )
-                    except Exception:
-                        pass
-
-                elif "Temperature:" in line:
-                    workflow_results["usb_monitoring"] = True
-                    print(f"✅ USB monitoring active: {line}")
-
-                elif "Web server" in line and "started" in line:
-                    workflow_results["web_access_ready"] = True
-                    print("✅ Web server for data access is ready")
+                _process_workflow_serial_line(line, workflow_results, sensor_readings)
 
             time.sleep(0.1)
 
@@ -447,9 +477,9 @@ def demonstrate_das_workflow():
             print("⚠️  JSON export not completed")
 
         workflow_success = (
-            workflow_results["data_collection"]
-            and workflow_results["storage_writes"] > 0
-            and workflow_results["usb_monitoring"]
+            workflow_results["data_collection"] and
+            workflow_results["storage_writes"] > 0 and
+            workflow_results["usb_monitoring"]
         )
 
         return workflow_success, workflow_results
@@ -514,9 +544,10 @@ def print_task2_summary(results):
     if results["task2_max_storage"] > 0:
         print("   Status: ✅ COMPLETED")
         print(
-            f"   Result: {results['task2_max_storage']:,} bytes ({results['task2_max_storage']/1024/1024:.2f} MB)"
+            f"   Result: {results['task2_max_storage']:,} bytes ("
+            f"{results['task2_max_storage'] / 1024 / 1024:.2f} MB)"
         )
-        print(f"   Capacity: ~{results['task2_max_storage']//251:,} sensor readings")
+        print(f"   Capacity: ~{results['task2_max_storage'] // 251:,} sensor readings")
     else:
         print("   Status: ❌ FAILED")
         print("   Result: Storage capacity could not be determined")
@@ -548,7 +579,8 @@ def print_task5_summary(results):
         f"   Status: {'✅ COMPLETED' if results['task5_workflow_demo'] else '❌ FAILED'}"
     )
     print(
-        f"   Result: Complete workflow {'demonstrated successfully' if results['task5_workflow_demo'] else 'demonstration failed'}"
+        f"   Result: Complete workflow {('demonstrated successfully' if results['task5_workflow_demo'] else
+                                         "demonstration failed")}"
     )
 
 
@@ -587,7 +619,7 @@ def generate_final_report(results):
 
     print("\n🎯 OVERALL PROJECT STATUS:")
     print(f"   Tasks Completed: {completed_tasks}/5")
-    print(f"   Success Rate: {(completed_tasks/5)*100:.0f}%")
+    print(f"   Success Rate: {(completed_tasks / 5) * 100:.0f}%")
 
     display_overall_status(completed_tasks)
 

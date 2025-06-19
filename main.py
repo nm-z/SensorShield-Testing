@@ -336,7 +336,8 @@ class SensorDataRetriever:
                             f"Free memory: {status.get('free_memory', 'Unknown')} bytes"
                         )
                         status_tree.add(
-                            f"SPIFFS used: {status.get('spiffs_used', 'Unknown')}/{status.get('spiffs_total', 'Unknown')} bytes"
+                            f"SPIFFS used: {status.get('spiffs_used', 'Unknown')}/"
+                            f"{status.get('spiffs_total', 'Unknown')} bytes"
                         )
                         status_tree.add(
                             f"BLE connected: {status.get('ble_connected', 'Unknown')}"
@@ -395,7 +396,8 @@ class SensorDataRetriever:
 
                 # Monitor live data with timeout
                 self.console.print(
-                    f"📊 [bold cyan]Monitoring live BLE data for {self.args.timeout}s (Press Ctrl+C to stop)...[/bold cyan]"
+                    f"📊 [bold cyan]Monitoring live BLE data for "
+                    f"{self.args.timeout}s (Press Ctrl+C to stop)...[/bold cyan]"
                 )
 
                 start_time = time.time()
@@ -559,7 +561,8 @@ class SensorDataRetriever:
                 first_entry = self.data_log[0]
                 last_entry = self.data_log[-1]
                 summary_tree.add(
-                    f"Time span: {first_entry.get('_timestamp', 'Unknown')} to {last_entry.get('_timestamp', 'Unknown')}"
+                    f"Time span: {first_entry.get('_timestamp', 'Unknown')} to "
+                    f"{last_entry.get('_timestamp', 'Unknown')}"
                 )
 
                 # Show data fields

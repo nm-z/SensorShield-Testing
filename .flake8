@@ -1,3 +1,35 @@
 [flake8]
-ignore = E501,W503,W504
 max-line-length = 120
+
+# —— Enable more error classes ——
+# pick up style + logic + complexity + security + docstring checks
+select = C,E,F,W,B,B9,B950,D,ANN,S
+
+# —— Don't drop everything else ——
+# only ignore the truly unavoidable
+extend-ignore =
+    E203
+    W504
+
+# —— Complexity thresholds ——
+# requires installing flake8‐complexity
+max-complexity = 10
+
+# —— Plugin configurations ——
+# D: docstrings via flake8‐docstrings
+# ANN: type‐annotation checks via flake8‐annotations
+# S: security via flake8‐bandit
+# B9: bugbear opinionated checks via flake8‐bugbear
+
+# —— Paths to skip (e.g. auto-generated or third-party) ——
+exclude =
+    .git,
+    __pycache__,
+    venv/,
+    build/,
+    dist/
+
+# —— Per‐file‐ignores (e.g. allow missing docstrings on tests) ——
+# requires Flake8 ≥3.7
+per-file-ignores =
+    tests/*:D101,D102,D103
