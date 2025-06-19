@@ -13,6 +13,8 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+#include <WiFi.h>
+#include <WebServer.h>
 
 // BLE Configuration
 #define SERVICE_UUID        "12345678-1234-5678-9abc-def123456789"
@@ -55,6 +57,12 @@ unsigned long lastLogTime = 0;
 const unsigned long LOG_INTERVAL = 5000; // Log every 5 seconds
 int bootCount = 1;
 
+// WiFi access point configuration
+const char* apSSID = "SensorShield";
+const char* apPassword = "sensorpass";
+WebServer server(80);
+
+
 // Function prototypes
 bool initSPIFFS();
 bool initBLE();
@@ -67,6 +75,9 @@ void logSensorData(const SensorData& data);
 void broadcastBLEData(const SensorData& data);
 String readStoredData(int maxEntries);
 void handleSerialCommands();
+void handleRoot();
+void handleData();
+void handleStatus();
 
 // BLE Server Callbacks
 class MyServerCallbacks: public BLEServerCallbacks {
@@ -455,6 +466,28 @@ void handleSerialCommands() {
   }
 }
 
+void handleRoot() {
+  server.send(200, "text/plain", "Sensor Shield");
+}
+
+void handleData() {
+  String json = readStoredData(100);
+  server.send(200, "application/json", json);
+}
+
+void handleStatus() {
+  DynamicJsonDocument doc(200);
+  doc["boot_count"] = bootCount;
+  doc["uptime_seconds"] = millis() / 1000;
+  doc["free_memory"] = ESP.getFreeHeap();
+  doc["spiffs_used"] = SPIFFS.usedBytes();
+  doc["spiffs_total"] = SPIFFS.totalBytes();
+  doc["ble_connected"] = deviceConnected;
+  String json;
+  serializeJson(doc, json);
+  server.send(200, "application/json", json);
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -465,13 +498,27 @@ void setup() {
   initSPIFFS();
   initBLE();
   initSensors();
-  
+
+  // Start WiFi access point
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(IPAddress(192,168,4,1), IPAddress(192,168,4,1), IPAddress(255,255,255,0));
+  WiFi.softAP(apSSID, apPassword);
+
+  // HTTP server routes
+  server.on("/", handleRoot);
+  server.on("/data", handleData);
+  server.on("/status", handleStatus);
+  server.begin();
+
   Serial.println("SYSTEM:READY");
 }
 
 void loop() {
   // Handle serial commands
   handleSerialCommands();
+
+  // Handle HTTP requests
+  server.handleClient();
   
   // Handle BLE connection changes
   if (!deviceConnected && oldDeviceConnected) {
