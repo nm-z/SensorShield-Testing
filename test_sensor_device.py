@@ -36,7 +36,7 @@ def test_das_capability_and_storage():
         # Wait for device to stabilize
         time.sleep(2)
         
-        print(f"📊 Monitoring for DAS initialization and storage info...")
+        print("📊 Monitoring for DAS initialization and storage info...")
         
         start_time = time.time()
         data_logged_count = 0
@@ -265,7 +265,7 @@ def test_ble_capability():
                       capture_output=True, text=True, timeout=5)
         
         if ble_devices:
-            print(f"✅ Found BLE sensor devices:")
+            print("✅ Found BLE sensor devices:")
             for device in ble_devices:
                 print(f"   • {device}")
             ble_service_active = True
@@ -451,28 +451,28 @@ def main():
     print("📊 COMPREHENSIVE TODO TASK COMPLETION REPORT")
     print("🏆" + "=" * 68 + "🏆")
     
-    print(f"\n✅ TASK 1 - DAS Capability Verification:")
+    print("\n✅ TASK 1 - DAS Capability Verification:")
     print(f"   Status: {'✅ COMPLETED' if results['task1_das_capability'] else '❌ FAILED'}")
     print(f"   Result: ESP32_Bat_Pro DAS capability {'confirmed' if results['task1_das_capability'] else 'not confirmed'}")
     
-    print(f"\n✅ TASK 2 - Maximum Storage Determination:")
+    print("\n✅ TASK 2 - Maximum Storage Determination:")
     if results['task2_max_storage'] > 0:
-        print(f"   Status: ✅ COMPLETED")
+        print("   Status: ✅ COMPLETED")
         print(f"   Result: {results['task2_max_storage']:,} bytes ({results['task2_max_storage']/1024/1024:.2f} MB)")
         print(f"   Capacity: ~{results['task2_max_storage']//251:,} sensor readings")
     else:
-        print(f"   Status: ❌ FAILED")
-        print(f"   Result: Storage capacity could not be determined")
+        print("   Status: ❌ FAILED")
+        print("   Result: Storage capacity could not be determined")
     
-    print(f"\n✅ TASK 3 - USB Accessibility:")
+    print("\n✅ TASK 3 - USB Accessibility:")
     print(f"   Status: {'✅ COMPLETED' if results['task3_usb_access'] else '❌ FAILED'}")
     print(f"   Result: USB data access {'functional' if results['task3_usb_access'] else 'not working'}")
     
-    print(f"\n✅ TASK 4 - BLE Data Access:")
+    print("\n✅ TASK 4 - BLE Data Access:")
     print(f"   Status: {'✅ COMPLETED' if results['task4_ble_capability'] else '❌ FAILED'}")
     print(f"   Result: BLE capability {'confirmed' if results['task4_ble_capability'] else 'not confirmed'}")
     
-    print(f"\n✅ TASK 5 - DAS Workflow Demonstration:")
+    print("\n✅ TASK 5 - DAS Workflow Demonstration:")
     print(f"   Status: {'✅ COMPLETED' if results['task5_workflow_demo'] else '❌ FAILED'}")
     print(f"   Result: Complete workflow {'demonstrated successfully' if results['task5_workflow_demo'] else 'demonstration failed'}")
     
@@ -485,16 +485,16 @@ def main():
         results['task5_workflow_demo']
     ])
     
-    print(f"\n🎯 OVERALL PROJECT STATUS:")
+    print("\n🎯 OVERALL PROJECT STATUS:")
     print(f"   Tasks Completed: {completed_tasks}/5")
     print(f"   Success Rate: {(completed_tasks/5)*100:.0f}%")
     
     if completed_tasks >= 4:
-        print(f"   Project Status: 🎉 SUCCESS - ESP32 SensorShield DAS system fully operational!")
+        print("   Project Status: 🎉 SUCCESS - ESP32 SensorShield DAS system fully operational!")
     elif completed_tasks >= 3:
-        print(f"   Project Status: ⚠️  MOSTLY SUCCESSFUL - Minor issues to resolve")
+        print("   Project Status: ⚠️  MOSTLY SUCCESSFUL - Minor issues to resolve")
     else:
-        print(f"   Project Status: ❌ NEEDS WORK - Major functionality issues")
+        print("   Project Status: ❌ NEEDS WORK - Major functionality issues")
     
     print("\n" + "🏆" + "=" * 68 + "🏆")
     
