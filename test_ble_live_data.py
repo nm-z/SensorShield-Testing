@@ -9,14 +9,16 @@ Comprehensive tool for retrieving sensor data via multiple methods:
 - BLE dump mode
 """
 
-import asyncio
-import subprocess
-import time
-import json
-import sys
 import argparse
+import asyncio
+import json
+import subprocess
+import sys
+import time
+
 try:
     import serial  # type: ignore
+
     SERIAL_AVAILABLE = True
 except ImportError:
     serial = None
@@ -24,23 +26,27 @@ except ImportError:
 
 try:
     import requests  # type: ignore
+
     REQUESTS_AVAILABLE = True
 except ImportError:
     requests = None
     REQUESTS_AVAILABLE = False
+import signal
 from datetime import datetime
 from pathlib import Path
+
 from rich.console import Console
-from rich.tree import Tree
 from rich.live import Live
 from rich.panel import Panel
-import signal
+from rich.tree import Tree
 
 try:
-    from bleak import BleakScanner, BleakClient
+    from bleak import BleakClient, BleakScanner
+
     BLEAK_AVAILABLE = True
 except ImportError:
     BLEAK_AVAILABLE = False
+
 
 class SensorDataRetriever:
     def __init__(self, args):
@@ -75,15 +81,27 @@ class SensorDataRetriever:
 
         # System Info
         system_branch = tree.add("🖥️ System Status")
-        if mode in ['serial', 'flash']:
-            system_branch.add("✅ Serial tools available" if self.check_serial_tools() else "❌ Serial tools not available")
-        if mode in ['ble-live', 'ble-dump']:
-            system_branch.add("✅ BLE tools available" if BLEAK_AVAILABLE else "❌ BLE tools not available")
-        if mode == 'access-point':
-            system_branch.add("✅ Network tools available" if self.check_network_tools() else "❌ Network tools not available")
+        if mode in ["serial", "flash"]:
+            system_branch.add(
+                "✅ Serial tools available"
+                if self.check_serial_tools()
+                else "❌ Serial tools not available"
+            )
+        if mode in ["ble-live", "ble-dump"]:
+            system_branch.add(
+                "✅ BLE tools available"
+                if BLEAK_AVAILABLE
+                else "❌ BLE tools not available"
+            )
+        if mode == "access-point":
+            system_branch.add(
+                "✅ Network tools available"
+                if self.check_network_tools()
+                else "❌ Network tools not available"
+            )
 
         # Connection Status
-        if mode == 'ble-live' and self.connected_device:
+        if mode == "ble-live" and self.connected_device:
             device_branch = tree.add(f"📱 Connected: {self.connected_device}")
             if self.live_data:
                 for key, value in self.live_data.items():
@@ -95,9 +113,11 @@ class SensorDataRetriever:
         # Data Status
         if self.data_log:
             log_branch = tree.add(f"📝 Data Retrieved ({len(self.data_log)} entries)")
-            recent_entries = self.data_log[-3:] if len(self.data_log) > 3 else self.data_log
+            recent_entries = (
+                self.data_log[-3:] if len(self.data_log) > 3 else self.data_log
+            )
             for entry in recent_entries:
-                timestamp = entry.get('timestamp', 'Unknown')
+                timestamp = entry.get("timestamp", "Unknown")
                 log_branch.add(f"⏰ {timestamp}")
 
         return tree
@@ -116,7 +136,9 @@ class SensorDataRetriever:
             self.console.print("❌ Serial tools not available")
             return False
 
-        self.console.print("💾 [bold blue]Flash/LittleFS Data Retrieval Mode[/bold blue]")
+        self.console.print(
+            "💾 [bold blue]Flash/LittleFS Data Retrieval Mode[/bold blue]"
+        )
 
         port = self.args.addr if self.args.addr else self.default_serial_port
 
@@ -138,11 +160,11 @@ class SensorDataRetriever:
 
             while time.time() - start_time < self.args.timeout and not dump_ended:
                 if ser.in_waiting > 0:
-                    data = ser.read(ser.in_waiting).decode('utf-8', errors='ignore')
+                    data = ser.read(ser.in_waiting).decode("utf-8", errors="ignore")
                     json_buffer += data
 
                     # Look for complete lines
-                    lines = json_buffer.split('\n')
+                    lines = json_buffer.split("\n")
                     for line in lines[:-1]:  # Process all complete lines
                         line = line.strip()
 
@@ -157,11 +179,13 @@ class SensorDataRetriever:
                             break
 
                         # Process JSON data between markers
-                        if dump_started and line.startswith('{') and line.endswith('}'):
+                        if dump_started and line.startswith("{") and line.endswith("}"):
                             try:
                                 entry = json.loads(line)
                                 self.data_log.append(entry)
-                                self.console.print(f"📊 [dim]Entry {len(self.data_log)}: {entry.get('timestamp', 'Unknown')}[/dim]")
+                                self.console.print(
+                                    f"📊 [dim]Entry {len(self.data_log)}: {entry.get('timestamp', 'Unknown')}[/dim]"
+                                )
                             except json.JSONDecodeError as e:
                                 self.console.print(f"⚠️ JSON decode error: {e}")
 
@@ -172,11 +196,15 @@ class SensorDataRetriever:
             ser.close()
 
             if not dump_started:
-                self.console.print("⚠️ No DUMP_START received - device may not support DUMP_ALL command")
+                self.console.print(
+                    "⚠️ No DUMP_START received - device may not support DUMP_ALL command"
+                )
             elif len(self.data_log) == 0:
                 self.console.print("ℹ️ No stored data found on device")
             else:
-                self.console.print(f"✅ Retrieved {len(self.data_log)} entries from flash storage")
+                self.console.print(
+                    f"✅ Retrieved {len(self.data_log)} entries from flash storage"
+                )
 
         except Exception as e:
             self.console.print(f"❌ Flash mode failed: {e}")
@@ -201,35 +229,51 @@ class SensorDataRetriever:
         try:
             ser = serial.Serial(port, 115200, timeout=1)
             self.console.print(f"🔌 Connected to {port}")
-            self.console.print(f"📡 [bold cyan]Monitoring real-time data for {self.args.timeout}s (Press Ctrl+C to stop)...[/bold cyan]")
+            self.console.print(
+                f"📡 [bold cyan]Monitoring real-time data for {self.args.timeout}s (Press Ctrl+C to stop)...[/bold cyan]"
+            )
 
             start_time = time.time()
             with Live(self.create_status_tree("serial"), refresh_per_second=2) as live:
                 while self.running and (time.time() - start_time < self.args.timeout):
                     if ser.in_waiting > 0:
                         try:
-                            line = ser.readline().decode('utf-8', errors='ignore').strip()
+                            line = (
+                                ser.readline().decode("utf-8", errors="ignore").strip()
+                            )
                             if line:
                                 timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
 
                                 # Parse JSON data if present
-                                if line.startswith('Data logged:'):
-                                    json_part = line.split('Data logged:', 1)[1].strip()
+                                if line.startswith("Data logged:"):
+                                    json_part = line.split("Data logged:", 1)[1].strip()
                                     try:
                                         data = json.loads(json_part)
-                                        data['_timestamp'] = timestamp
+                                        data["_timestamp"] = timestamp
                                         self.data_log.append(data)
-                                        self.console.print(f"[green][{timestamp}] Data: {json_part}[/green]")
+                                        self.console.print(
+                                            f"[green][{timestamp}] Data: {json_part}[/green]"
+                                        )
                                     except json.JSONDecodeError:
                                         pass
                                 else:
                                     # Print all other serial output with Rich Tree structure
-                                    if any(keyword in line for keyword in ['SENSOR', 'Temperature', 'BLE', 'Storage']):
+                                    if any(
+                                        keyword in line
+                                        for keyword in [
+                                            "SENSOR",
+                                            "Temperature",
+                                            "BLE",
+                                            "Storage",
+                                        ]
+                                    ):
                                         tree = Tree(f"📊 [{timestamp}] ESP32 Output")
                                         tree.add(line)
                                         self.console.print(tree)
                                     else:
-                                        self.console.print(f"[dim][{timestamp}] {line}[/dim]")
+                                        self.console.print(
+                                            f"[dim][{timestamp}] {line}[/dim]"
+                                        )
 
                         except Exception as e:
                             self.console.print(f"⚠️ Decode error: {e}")
@@ -269,7 +313,9 @@ class SensorDataRetriever:
             if response.status_code == 200:
                 data = response.json()
                 self.data_log.extend(data)
-                self.console.print(f"✅ Retrieved {len(data)} entries from access point")
+                self.console.print(
+                    f"✅ Retrieved {len(data)} entries from access point"
+                )
 
                 # Also get device status
                 try:
@@ -279,11 +325,21 @@ class SensorDataRetriever:
 
                         # Display device status using Rich
                         status_tree = Tree("📊 Device Status")
-                        status_tree.add(f"Boot count: {status.get('boot_count', 'Unknown')}")
-                        status_tree.add(f"Uptime: {status.get('uptime_seconds', 'Unknown')} seconds")
-                        status_tree.add(f"Free memory: {status.get('free_memory', 'Unknown')} bytes")
-                        status_tree.add(f"SPIFFS used: {status.get('spiffs_used', 'Unknown')}/{status.get('spiffs_total', 'Unknown')} bytes")
-                        status_tree.add(f"BLE connected: {status.get('ble_connected', 'Unknown')}")
+                        status_tree.add(
+                            f"Boot count: {status.get('boot_count', 'Unknown')}"
+                        )
+                        status_tree.add(
+                            f"Uptime: {status.get('uptime_seconds', 'Unknown')} seconds"
+                        )
+                        status_tree.add(
+                            f"Free memory: {status.get('free_memory', 'Unknown')} bytes"
+                        )
+                        status_tree.add(
+                            f"SPIFFS used: {status.get('spiffs_used', 'Unknown')}/{status.get('spiffs_total', 'Unknown')} bytes"
+                        )
+                        status_tree.add(
+                            f"BLE connected: {status.get('ble_connected', 'Unknown')}"
+                        )
 
                         self.console.print(status_tree)
 
@@ -321,16 +377,16 @@ class SensorDataRetriever:
                 def notification_handler(sender, data):
                     timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
                     try:
-                        decoded = data.decode('utf-8')
+                        decoded = data.decode("utf-8")
                         json_data = json.loads(decoded)
-                        json_data['_timestamp'] = timestamp
+                        json_data["_timestamp"] = timestamp
                         self.live_data.update(json_data)
                         self.data_log.append(json_data)
 
                         # Use Rich Tree for structured display
                         tree = Tree(f"🔔 [{timestamp}] Live BLE Data")
                         for key, value in json_data.items():
-                            if key != '_timestamp':
+                            if key != "_timestamp":
                                 tree.add(f"{key}: {value}")
                         self.console.print(tree)
 
@@ -338,15 +394,23 @@ class SensorDataRetriever:
                         self.console.print(f"⚠️ Data decode error: {e}")
 
                 # Start notifications
-                await client.start_notify(self.ble_characteristic_uuid, notification_handler)
+                await client.start_notify(
+                    self.ble_characteristic_uuid, notification_handler
+                )
                 self.console.print("🔔 Started BLE notifications")
 
                 # Monitor live data with timeout
-                self.console.print(f"📊 [bold cyan]Monitoring live BLE data for {self.args.timeout}s (Press Ctrl+C to stop)...[/bold cyan]")
+                self.console.print(
+                    f"📊 [bold cyan]Monitoring live BLE data for {self.args.timeout}s (Press Ctrl+C to stop)...[/bold cyan]"
+                )
 
                 start_time = time.time()
-                with Live(self.create_status_tree("ble-live"), refresh_per_second=2) as live:
-                    while self.running and (time.time() - start_time < self.args.timeout):
+                with Live(
+                    self.create_status_tree("ble-live"), refresh_per_second=2
+                ) as live:
+                    while self.running and (
+                        time.time() - start_time < self.args.timeout
+                    ):
                         live.update(self.create_status_tree("ble-live"))
                         await asyncio.sleep(1)
 
@@ -381,7 +445,9 @@ class SensorDataRetriever:
 
                 # Send DUMP_ALL command via BLE
                 dump_command = "DUMP_ALL"
-                await client.write_gatt_char(self.ble_characteristic_uuid, dump_command.encode())
+                await client.write_gatt_char(
+                    self.ble_characteristic_uuid, dump_command.encode()
+                )
                 self.console.print("📤 Sent DUMP_ALL command via BLE")
 
                 # Set up notification handler for dump response
@@ -391,7 +457,7 @@ class SensorDataRetriever:
                 def dump_handler(sender, data):
                     nonlocal dump_started, dump_ended
                     try:
-                        decoded = data.decode('utf-8').strip()
+                        decoded = data.decode("utf-8").strip()
 
                         if decoded == "DUMP_START":
                             dump_started = True
@@ -399,12 +465,16 @@ class SensorDataRetriever:
                         elif decoded == "DUMP_END":
                             dump_ended = True
                             self.console.print("✅ BLE data dump completed")
-                        elif dump_started and decoded.startswith('{'):
+                        elif dump_started and decoded.startswith("{"):
                             try:
                                 entry = json.loads(decoded)
-                                entry['_timestamp'] = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                                entry["_timestamp"] = datetime.now().strftime(
+                                    "%H:%M:%S.%f"
+                                )[:-3]
                                 self.data_log.append(entry)
-                                self.console.print(f"📊 [dim]Entry {len(self.data_log)}: {entry.get('timestamp', 'Unknown')}[/dim]")
+                                self.console.print(
+                                    f"📊 [dim]Entry {len(self.data_log)}: {entry.get('timestamp', 'Unknown')}[/dim]"
+                                )
                             except json.JSONDecodeError:
                                 pass
                     except Exception as e:
@@ -419,11 +489,15 @@ class SensorDataRetriever:
                     await asyncio.sleep(0.5)
 
                 if not dump_started:
-                    self.console.print("⚠️ No DUMP_START received - device may not support BLE DUMP_ALL command")
+                    self.console.print(
+                        "⚠️ No DUMP_START received - device may not support BLE DUMP_ALL command"
+                    )
                     self.console.print("🔄 Falling back to BLE live mode...")
                     return await self.mode_ble_live()
                 elif not dump_ended:
-                    self.console.print(f"⏰ Dump timeout reached ({self.args.timeout}s)")
+                    self.console.print(
+                        f"⏰ Dump timeout reached ({self.args.timeout}s)"
+                    )
 
                 return len(self.data_log) > 0
 
@@ -440,7 +514,9 @@ class SensorDataRetriever:
 
         for device in devices:
             if device.name and self.target_device_name.lower() in device.name.lower():
-                self.console.print(f"✅ Found target device: {device.name} ({device.address})")
+                self.console.print(
+                    f"✅ Found target device: {device.name} ({device.address})"
+                )
                 return device
 
         self.console.print("❌ Target device not found")
@@ -452,13 +528,19 @@ class SensorDataRetriever:
             self.console.print("⚠️ No data to save")
             return
 
-        output_file = self.args.output if self.args.output else f"sensor_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        output_file = (
+            self.args.output
+            if self.args.output
+            else f"sensor_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
 
         try:
-            with open(output_file, 'w') as f:
+            with open(output_file, "w") as f:
                 json.dump(self.data_log, f, indent=2)
 
-            self.console.print(f"💾 Saved {len(self.data_log)} entries to {output_file}")
+            self.console.print(
+                f"💾 Saved {len(self.data_log)} entries to {output_file}"
+            )
 
             # Generate summary using Rich Tree
             summary_tree = Tree("📊 Data Collection Summary")
@@ -469,18 +551,21 @@ class SensorDataRetriever:
             if self.data_log:
                 first_entry = self.data_log[0]
                 last_entry = self.data_log[-1]
-                summary_tree.add(f"Time span: {first_entry.get('_timestamp', 'Unknown')} to {last_entry.get('_timestamp', 'Unknown')}")
+                summary_tree.add(
+                    f"Time span: {first_entry.get('_timestamp', 'Unknown')} to {last_entry.get('_timestamp', 'Unknown')}"
+                )
 
                 # Show data fields
                 fields_branch = summary_tree.add("Data fields:")
                 for key in first_entry.keys():
-                    if key != '_timestamp':
+                    if key != "_timestamp":
                         fields_branch.add(key)
 
             self.console.print(summary_tree)
 
         except Exception as e:
             self.console.print(f"❌ Failed to save data: {e}")
+
 
 async def main():
     parser = argparse.ArgumentParser(
@@ -496,29 +581,55 @@ Examples:
   %(prog)s -ap --addr 192.168.1.100    # Custom AP address
   %(prog)s -bl -o live_data.json       # Save BLE data to file
         """,
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     # Mode selection (mutually exclusive)
     mode_group = parser.add_mutually_exclusive_group(required=True)
-    mode_group.add_argument('-f', '--flash', action='store_true',
-                          help='Pull full JSON log from LittleFS on 16MB SPI NOR chip')
-    mode_group.add_argument('-s', '--serial', nargs='?', const=True,
-                          help='Mirror real-time Serial.println() stream (default: /dev/ttyUSB0)')
-    mode_group.add_argument('-ap', '--access-point', action='store_true',
-                          help='Download /data from WiFi AP (192.168.4.1)')
-    mode_group.add_argument('-bl', '--ble-live', action='store_true',
-                          help='Subscribe to BLE LogData notifications for live readings')
-    mode_group.add_argument('-bd', '--ble-dump', action='store_true',
-                          help='Send DUMP over BLE LogCtrl, save full history until EOF')
+    mode_group.add_argument(
+        "-f",
+        "--flash",
+        action="store_true",
+        help="Pull full JSON log from LittleFS on 16MB SPI NOR chip",
+    )
+    mode_group.add_argument(
+        "-s",
+        "--serial",
+        nargs="?",
+        const=True,
+        help="Mirror real-time Serial.println() stream (default: /dev/ttyUSB0)",
+    )
+    mode_group.add_argument(
+        "-ap",
+        "--access-point",
+        action="store_true",
+        help="Download /data from WiFi AP (192.168.4.1)",
+    )
+    mode_group.add_argument(
+        "-bl",
+        "--ble-live",
+        action="store_true",
+        help="Subscribe to BLE LogData notifications for live readings",
+    )
+    mode_group.add_argument(
+        "-bd",
+        "--ble-dump",
+        action="store_true",
+        help="Send DUMP over BLE LogCtrl, save full history until EOF",
+    )
 
     # Optional arguments
-    parser.add_argument('--addr',
-                       help='Override IP (AP), BLE MAC, or Serial port (e.g., --addr AA:BB:CC:DD:EE:FF)')
-    parser.add_argument('-o', '--output',
-                       help='Write output to file instead of stdout')
-    parser.add_argument('--timeout', type=int, default=30,
-                       help='Network/BLE timeout in seconds (default: 30)')
+    parser.add_argument(
+        "--addr",
+        help="Override IP (AP), BLE MAC, or Serial port (e.g., --addr AA:BB:CC:DD:EE:FF)",
+    )
+    parser.add_argument("-o", "--output", help="Write output to file instead of stdout")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=30,
+        help="Network/BLE timeout in seconds (default: 30)",
+    )
 
     args = parser.parse_args()
 
@@ -530,10 +641,9 @@ Examples:
     retriever = SensorDataRetriever(args)
 
     # Header
-    retriever.console.print(Panel.fit(
-        "📊 ESP32 Sensor Shield Data Retrieval Tool",
-        style="bold blue"
-    ))
+    retriever.console.print(
+        Panel.fit("📊 ESP32 Sensor Shield Data Retrieval Tool", style="bold blue")
+    )
 
     success = False
 
@@ -555,10 +665,14 @@ Examples:
             retriever.save_output()
 
         if success:
-            retriever.console.print("\n🎉 [bold green]Data retrieval completed successfully![/bold green]")
+            retriever.console.print(
+                "\n🎉 [bold green]Data retrieval completed successfully![/bold green]"
+            )
             return 0
         else:
-            retriever.console.print("\n⚠️ [bold yellow]Data retrieval completed with issues[/bold yellow]")
+            retriever.console.print(
+                "\n⚠️ [bold yellow]Data retrieval completed with issues[/bold yellow]"
+            )
             return 1
 
     except KeyboardInterrupt:
@@ -569,6 +683,7 @@ Examples:
     except Exception as e:
         retriever.console.print(f"\n❌ [bold red]Data retrieval failed: {e}[/bold red]")
         return 1
+
 
 if __name__ == "__main__":
     exit_code = asyncio.run(main())

@@ -499,27 +499,23 @@ void handleStatus() {
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  
+  delay(1000);  // Wait for serial to connect
   Serial.println("SYSTEM:STARTUP");
-  
-  // Initialize components
+
   initSPIFFS();
-  initBLE();
+  initBLE(); // Re-enabling BLE initialization
   initSensors();
 
-  // Start WiFi access point
-  WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(IPAddress(192,168,4,1), IPAddress(192,168,4,1), IPAddress(255,255,255,0));
+  // WiFi Access Point Setup - Re-enabling
   WiFi.softAP(apSSID, apPassword);
-
-  // HTTP server routes
+  Serial.print("AP IP address: ");
+  Serial.println(WiFi.softAPIP());
   server.on("/", handleRoot);
   server.on("/data", handleData);
   server.on("/status", handleStatus);
   server.begin();
-
-  Serial.println("SYSTEM:READY");
+  
+  Serial.println("SETUP:COMPLETED");
 }
 
 void loop() {
