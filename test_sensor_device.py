@@ -405,15 +405,16 @@ def demonstrate_das_workflow():
         print(f"❌ Workflow demonstration failed: {e}")
         return False, workflow_results
 
-def main():
-    """Main comprehensive test function for all TODO tasks"""
-    
+def display_header():
+    """Print the main header for the test suite."""
     print("🛡️  ESP32 SENSOR SHIELD COMPREHENSIVE DAS TEST")
     print("=" * 70)
     print("Testing all TODO Task requirements with device confirmations")
     print("=" * 70)
-    
-    # Initialize results tracking
+
+
+def execute_all_tests():
+    """Run all individual checks and return their results."""
     results = {
         'task1_das_capability': False,
         'task2_max_storage': 0,
@@ -421,84 +422,117 @@ def main():
         'task4_ble_capability': False,
         'task5_workflow_demo': False
     }
-    
-    # Execute all tests
+
     try:
-        # Tasks 1 & 2: DAS Capability and Storage
-        das_confirmed, storage_capacity, storage_working = test_das_capability_and_storage()
+        das_confirmed, storage_capacity, _ = test_das_capability_and_storage()
         results['task1_das_capability'] = das_confirmed
         results['task2_max_storage'] = storage_capacity
-        
-        # Task 3: USB Accessibility  
-        usb_access, usb_serial, wifi_ap, web_interface = test_usb_accessibility()
+
+        usb_access, *_ = test_usb_accessibility()
         results['task3_usb_access'] = usb_access
-        
-        # Task 4: BLE Capability
-        ble_capable, ble_hardware, ble_active = test_ble_capability()
+
+        ble_capable, *_ = test_ble_capability()
         results['task4_ble_capability'] = ble_capable
-        
-        # Task 5: Workflow Demonstration
-        workflow_success, workflow_details = demonstrate_das_workflow()
+
+        workflow_success, _ = demonstrate_das_workflow()
         results['task5_workflow_demo'] = workflow_success
-        
+
     except KeyboardInterrupt:
         print("\n⏹️  Test interrupted by user")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         print(f"\n❌ Test suite error: {e}")
-    
-    # Generate comprehensive final report
+
+    return results
+
+
+def print_task1_summary(results):
+    print("\n✅ TASK 1 - DAS Capability Verification:")
+    print(f"   Status: {'✅ COMPLETED' if results['task1_das_capability'] else '❌ FAILED'}")
+    print(
+        f"   Result: ESP32_Bat_Pro DAS capability {'confirmed' if results['task1_das_capability'] else 'not confirmed'}"
+    )
+
+
+def print_task2_summary(results):
+    print("\n✅ TASK 2 - Maximum Storage Determination:")
+    if results['task2_max_storage'] > 0:
+        print("   Status: ✅ COMPLETED")
+        print(
+            f"   Result: {results['task2_max_storage']:,} bytes ({results['task2_max_storage']/1024/1024:.2f} MB)"
+        )
+        print(f"   Capacity: ~{results['task2_max_storage']//251:,} sensor readings")
+    else:
+        print("   Status: ❌ FAILED")
+        print("   Result: Storage capacity could not be determined")
+
+
+def print_task3_summary(results):
+    print("\n✅ TASK 3 - USB Accessibility:")
+    print(f"   Status: {'✅ COMPLETED' if results['task3_usb_access'] else '❌ FAILED'}")
+    print(f"   Result: USB data access {'functional' if results['task3_usb_access'] else 'not working'}")
+
+
+def print_task4_summary(results):
+    print("\n✅ TASK 4 - BLE Data Access:")
+    print(f"   Status: {'✅ COMPLETED' if results['task4_ble_capability'] else '❌ FAILED'}")
+    print(f"   Result: BLE capability {'confirmed' if results['task4_ble_capability'] else 'not confirmed'}")
+
+
+def print_task5_summary(results):
+    print("\n✅ TASK 5 - DAS Workflow Demonstration:")
+    print(f"   Status: {'✅ COMPLETED' if results['task5_workflow_demo'] else '❌ FAILED'}")
+    print(
+        f"   Result: Complete workflow {'demonstrated successfully' if results['task5_workflow_demo'] else 'demonstration failed'}"
+    )
+
+
+def display_overall_status(completed_tasks):
+    if completed_tasks >= 4:
+        print("   Project Status: 🎉 SUCCESS - ESP32 SensorShield DAS system fully operational!")
+    elif completed_tasks >= 3:
+        print("   Project Status: ⚠️  MOSTLY SUCCESSFUL - Minor issues to resolve")
+    else:
+        print("   Project Status: ❌ NEEDS WORK - Major functionality issues")
+
+
+def generate_final_report(results):
+    """Print a detailed summary of all test results."""
     print("\n" + "🏆" + "=" * 68 + "🏆")
     print("📊 COMPREHENSIVE TODO TASK COMPLETION REPORT")
     print("🏆" + "=" * 68 + "🏆")
-    
-    print(f"\n✅ TASK 1 - DAS Capability Verification:")
-    print(f"   Status: {'✅ COMPLETED' if results['task1_das_capability'] else '❌ FAILED'}")
-    print(f"   Result: ESP32_Bat_Pro DAS capability {'confirmed' if results['task1_das_capability'] else 'not confirmed'}")
-    
-    print(f"\n✅ TASK 2 - Maximum Storage Determination:")
-    if results['task2_max_storage'] > 0:
-        print(f"   Status: ✅ COMPLETED")
-        print(f"   Result: {results['task2_max_storage']:,} bytes ({results['task2_max_storage']/1024/1024:.2f} MB)")
-        print(f"   Capacity: ~{results['task2_max_storage']//251:,} sensor readings")
-    else:
-        print(f"   Status: ❌ FAILED")
-        print(f"   Result: Storage capacity could not be determined")
-    
-    print(f"\n✅ TASK 3 - USB Accessibility:")
-    print(f"   Status: {'✅ COMPLETED' if results['task3_usb_access'] else '❌ FAILED'}")
-    print(f"   Result: USB data access {'functional' if results['task3_usb_access'] else 'not working'}")
-    
-    print(f"\n✅ TASK 4 - BLE Data Access:")
-    print(f"   Status: {'✅ COMPLETED' if results['task4_ble_capability'] else '❌ FAILED'}")
-    print(f"   Result: BLE capability {'confirmed' if results['task4_ble_capability'] else 'not confirmed'}")
-    
-    print(f"\n✅ TASK 5 - DAS Workflow Demonstration:")
-    print(f"   Status: {'✅ COMPLETED' if results['task5_workflow_demo'] else '❌ FAILED'}")
-    print(f"   Result: Complete workflow {'demonstrated successfully' if results['task5_workflow_demo'] else 'demonstration failed'}")
-    
-    # Overall status
-    completed_tasks = sum([
-        results['task1_das_capability'],
-        results['task2_max_storage'] > 0,
-        results['task3_usb_access'],
-        results['task4_ble_capability'],
-        results['task5_workflow_demo']
-    ])
-    
-    print(f"\n🎯 OVERALL PROJECT STATUS:")
+
+    print_task1_summary(results)
+    print_task2_summary(results)
+    print_task3_summary(results)
+    print_task4_summary(results)
+    print_task5_summary(results)
+
+    completed_tasks = sum(
+        [
+            results['task1_das_capability'],
+            results['task2_max_storage'] > 0,
+            results['task3_usb_access'],
+            results['task4_ble_capability'],
+            results['task5_workflow_demo'],
+        ]
+    )
+
+    print("\n🎯 OVERALL PROJECT STATUS:")
     print(f"   Tasks Completed: {completed_tasks}/5")
     print(f"   Success Rate: {(completed_tasks/5)*100:.0f}%")
-    
-    if completed_tasks >= 4:
-        print(f"   Project Status: 🎉 SUCCESS - ESP32 SensorShield DAS system fully operational!")
-    elif completed_tasks >= 3:
-        print(f"   Project Status: ⚠️  MOSTLY SUCCESSFUL - Minor issues to resolve")
-    else:
-        print(f"   Project Status: ❌ NEEDS WORK - Major functionality issues")
-    
+
+    display_overall_status(completed_tasks)
+
     print("\n" + "🏆" + "=" * 68 + "🏆")
-    
+
     return completed_tasks >= 4
+
+
+def main():
+    """Entry point for the comprehensive test suite."""
+    display_header()
+    results = execute_all_tests()
+    return generate_final_report(results)
 
 if __name__ == "__main__":
     success = main()
