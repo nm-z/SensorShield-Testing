@@ -14,12 +14,6 @@ bleak>=0.21.0
 # Rich text UI for enhanced terminal output
 rich>=13.7.0
 
-# JSON handling (built-in, no requirement needed)
-# asyncio (built-in, no requirement needed)
-# subprocess (built-in, no requirement needed)
-# time (built-in, no requirement needed)
-# sys (built-in, no requirement needed)  
-# argparse (built-in, no requirement needed)
-# datetime (built-in, no requirement needed)
-# pathlib (built-in, no requirement needed)
-# signal (built-in, no requirement needed) 
+# Interactive CLI menu
+python-cli-menu>=1.8.1
+
