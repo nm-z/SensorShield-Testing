@@ -574,7 +574,7 @@ class SensorDataRetriever:
             self.console.print(f"❌ Failed to save data: {e}")
 
 
-async def main():
+def parse_arguments():
     parser = argparse.ArgumentParser(
         description="ESP32 Sensor Shield Data Retrieval Tool",
         epilog="""
@@ -653,7 +653,7 @@ Examples:
         )
 
         if selection == "Exit":
-            return 0
+            sys.exit(0)
         elif selection == "Serial monitor":
             args.serial_port = True
             port = (
@@ -699,6 +699,13 @@ Examples:
                 args.timeout = int(t_val)
             except ValueError:
                 pass
+
+    return args
+
+
+async def run_retrieval(args):
+    """Run the data retrieval workflow."""
+
     # Create retriever instance
     retriever = SensorDataRetriever(args)
 
@@ -749,7 +756,7 @@ Examples:
         return 1
 
 
-if __name__ == "__main__":
+def main():
     # Check dependencies and install if needed
     try:
         import rich  # noqa: F401
@@ -781,5 +788,10 @@ if __name__ == "__main__":
             capture_output=True,
         )
 
-    exit_code = asyncio.run(main())
+    args = parse_arguments()
+    exit_code = asyncio.run(run_retrieval(args))
     sys.exit(exit_code)
+
+
+if __name__ == "__main__":
+    main()
