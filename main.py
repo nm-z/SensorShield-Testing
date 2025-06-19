@@ -188,10 +188,7 @@ class SensorDataRetriever:
                         if dump_started and line.startswith("{") and line.endswith("}"):
                             try:
                                 entry = json.loads(line)
-                                self.data_log.append(entry)
-                                self.console.print(
-                                    f"📊 [dim]Entry {len(self.data_log)}: {entry.get('timestamp', 'Unknown')}[/dim]"
-                                )
+                                self.process_entry(entry)
                             except json.JSONDecodeError as e:
                                 self.console.print(f"⚠️ JSON decode error: {e}")
 
@@ -256,10 +253,7 @@ class SensorDataRetriever:
                                     try:
                                         data = json.loads(json_part)
                                         data["_timestamp"] = timestamp
-                                        self.data_log.append(data)
-                                        self.console.print(
-                                            f"[green][{timestamp}] Data: {json_part}[/green]"
-                                        )
+                                        self.process_entry(data)
                                     except json.JSONDecodeError:
                                         pass
                                 else:
@@ -318,7 +312,8 @@ class SensorDataRetriever:
 
             if response.status_code == 200:
                 data = response.json()
-                self.data_log.extend(data)
+                for entry in data:
+                    self.process_entry(entry)
                 self.console.print(
                     f"✅ Retrieved {len(data)} entries from access point"
                 )
@@ -387,14 +382,7 @@ class SensorDataRetriever:
                         json_data = json.loads(decoded)
                         json_data["_timestamp"] = timestamp
                         self.live_data.update(json_data)
-                        self.data_log.append(json_data)
-
-                        # Use Rich Tree for structured display
-                        tree = Tree(f"🔔 [{timestamp}] Live BLE Data")
-                        for key, value in json_data.items():
-                            if key != "_timestamp":
-                                tree.add(f"{key}: {value}")
-                        self.console.print(tree)
+                        self.process_entry(json_data)
 
                     except Exception as e:
                         self.console.print(f"⚠️ Data decode error: {e}")
@@ -477,10 +465,7 @@ class SensorDataRetriever:
                                 entry["_timestamp"] = datetime.now().strftime(
                                     "%H:%M:%S.%f"
                                 )[:-3]
-                                self.data_log.append(entry)
-                                self.console.print(
-                                    f"📊 [dim]Entry {len(self.data_log)}: {entry.get('timestamp', 'Unknown')}[/dim]"
-                                )
+                                self.process_entry(entry)
                             except json.JSONDecodeError:
                                 pass
                     except Exception as e:
@@ -527,6 +512,22 @@ class SensorDataRetriever:
 
         self.console.print("❌ Target device not found")
         return None
+
+    def process_entry(self, entry):
+        """Store and display a single data entry respecting filters"""
+        if self.args.filter:
+            allowed = [f.strip() for f in self.args.filter.split(',')]
+            entry = {k: v for k, v in entry.items() if k in allowed or k == "_timestamp"}
+
+        self.data_log.append(entry)
+
+        if self.args.json:
+            self.console.print(json.dumps(entry))
+        else:
+            tree = Tree("📊 Entry")
+            for key, value in entry.items():
+                tree.add(f"{key}: {value}")
+            self.console.print(tree)
 
     def save_output(self):
         """Save collected data to output file"""
@@ -578,14 +579,11 @@ async def main():
         description="ESP32 Sensor Shield Data Retrieval Tool",
         epilog="""
 Examples:
-  %(prog)s -f                          # Pull full LittleFS data
-  %(prog)s -s                          # Monitor serial stream
-  %(prog)s -s /dev/ttyACM0             # Monitor specific serial port
-  %(prog)s -ap                         # Download from WiFi AP
-  %(prog)s -bl                         # BLE live streaming
-  %(prog)s -bd                         # BLE dump mode
-  %(prog)s -ap --addr 192.168.1.100    # Custom AP address
-  %(prog)s -bl -o live_data.json       # Save BLE data to file
+  %(prog)s -sp                         # Serial monitor live-stream
+  %(prog)s -wf                         # Wi-Fi AP live-stream
+  %(prog)s -bt                         # Bluetooth live-stream
+  %(prog)s -sp --dump                  # Retrieve historical data via serial
+  %(prog)s -bt --dump -o history.json  # Save full history over BLE
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -593,56 +591,49 @@ Examples:
     # Mode selection (mutually exclusive)
     mode_group = parser.add_mutually_exclusive_group(required=False)
     mode_group.add_argument(
-        "-f",
-        "--flash",
+        "-sp",
+        "--serial-port",
         action="store_true",
-        help="Pull full JSON log from LittleFS on 16MB SPI NOR chip",
+        help="Serial Monitor live-stream",
     )
     mode_group.add_argument(
-        "-s",
-        "--serial",
-        nargs="?",
-        const=True,
-        help="Mirror real-time Serial.println() stream (default: /dev/ttyUSB0)",
+        "-wf",
+        "--wifi",
+        action="store_true",
+        help="Wi-Fi AP live-stream",
     )
     mode_group.add_argument(
-        "-ap",
-        "--access-point",
+        "-bt",
+        "--bluetooth",
         action="store_true",
-        help="Download /data from WiFi AP (192.168.4.1)",
+        help="Bluetooth live-stream",
     )
-    mode_group.add_argument(
-        "-bl",
-        "--ble-live",
-        action="store_true",
-        help="Subscribe to BLE LogData notifications for live readings",
-    )
-    mode_group.add_argument(
-        "-bd",
-        "--ble-dump",
-        action="store_true",
-        help="Send DUMP over BLE LogCtrl, save full history until EOF",
-    )
+
+    # Optional modifiers
+    parser.add_argument("--dump", action="store_true", help="Retrieve historical data from device memory")
 
     # Optional arguments
     parser.add_argument(
         "--addr",
-        help="Override IP (AP), BLE MAC, or Serial port (e.g., --addr AA:BB:CC:DD:EE:FF)",
+        help="Override IP/BLE MAC/or Serial port",
     )
     parser.add_argument("-o", "--output", help="Write output to file instead of stdout")
     parser.add_argument(
         "--timeout",
         type=int,
         default=30,
-        help="Network/BLE timeout in seconds (default: 30)",
+        help="Timeout in seconds (default: 30)",
+    )
+    parser.add_argument("--json", action="store_true", help="Output raw JSON")
+    parser.add_argument(
+        "--filter",
+        help="Comma-separated list of fields to display",
     )
 
     args = parser.parse_args()
 
     # Launch interactive menu if no mode provided
-    if not any(
-        [args.flash, args.serial, args.access_point, args.ble_live, args.ble_dump]
-    ):
+    if not any([args.serial_port, args.wifi, args.bluetooth]):
         if not MENU_AVAILABLE:
             raise RuntimeError(
                 "Interactive menu requested but InquirerPy is not installed."
@@ -652,11 +643,9 @@ Examples:
             inquirer.select(
                 message="Select Data Retrieval Mode",
                 choices=[
-                    "Flash dump",
                     "Serial monitor",
                     "WiFi access point",
-                    "BLE live streaming",
-                    "BLE dump",
+                    "Bluetooth",
                     "Exit",
                 ],
                 pointer=">",
@@ -665,10 +654,8 @@ Examples:
 
         if selection == "Exit":
             return 0
-        elif selection == "Flash dump":
-            args.flash = True
         elif selection == "Serial monitor":
-            args.serial = True
+            args.serial_port = True
             port = (
                 inquirer.text(
                     message=f"Serial port (default {SensorDataRetriever(None).default_serial_port}): "
@@ -677,7 +664,7 @@ Examples:
             if port:
                 args.addr = port
         elif selection == "WiFi access point":
-            args.access_point = True
+            args.wifi = True
             ip = (
                 inquirer.text(
                     message=f"AP IP (default {SensorDataRetriever(None).default_ap_ip}): "
@@ -685,10 +672,15 @@ Examples:
             )
             if ip:
                 args.addr = ip
-        elif selection == "BLE live streaming":
-            args.ble_live = True
-        elif selection == "BLE dump":
-            args.ble_dump = True
+        elif selection == "Bluetooth":
+            args.bluetooth = True
+
+        dump_choice = inquirer.confirm(
+            message="Dump stored data instead of live stream?",
+            default=False,
+        ).execute()
+        if dump_choice:
+            args.dump = True
 
         out_file = (
             inquirer.text(message="Output file (leave blank for none): ")
@@ -707,11 +699,6 @@ Examples:
                 args.timeout = int(t_val)
             except ValueError:
                 pass
-
-    # Handle serial port specification when argument provided
-    if args.serial and isinstance(args.serial, str):
-        args.addr = args.serial
-
     # Create retriever instance
     retriever = SensorDataRetriever(args)
 
@@ -724,16 +711,18 @@ Examples:
 
     try:
         # Route to appropriate mode
-        if args.flash:
-            success = await retriever.mode_flash()
-        elif args.serial:
-            success = await retriever.mode_serial()
-        elif args.access_point:
+        if args.serial_port:
+            if args.dump:
+                success = await retriever.mode_flash()
+            else:
+                success = await retriever.mode_serial()
+        elif args.wifi:
             success = await retriever.mode_access_point()
-        elif args.ble_live:
-            success = await retriever.mode_ble_live()
-        elif args.ble_dump:
-            success = await retriever.mode_ble_dump()
+        elif args.bluetooth:
+            if args.dump:
+                success = await retriever.mode_ble_dump()
+            else:
+                success = await retriever.mode_ble_live()
 
         # Save output if requested and data was collected
         if success and (args.output or retriever.data_log):

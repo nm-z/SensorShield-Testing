@@ -59,6 +59,13 @@ Run without arguments to get an interactive menu powered by `InquirerPy`:
 python3 main.py
 ```
 
+Key options:
+
+- `-sp` Serial Monitor live-stream
+- `-wf` Wi-Fi AP live-stream
+- `-bt` Bluetooth live-stream
+- `--dump` Retrieve historical data from device memory
+
 All command-line options still work for scripting purposes.
 
 ## Hardware Notes
