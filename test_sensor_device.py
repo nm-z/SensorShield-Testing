@@ -5,13 +5,14 @@ Tests the connected sensor device and provides confirmations for all TODO tasks
 Verifies: DAS capability, storage capacity, USB access, BLE capability, and workflow demo
 """
 
-import serial
 import time
 import json
 import sys
 import subprocess
-import requests
 from datetime import datetime
+
+import serial
+import requests
 
 def test_das_capability_and_storage():
     """Test DAS capability and determine maximum storage - TODO Tasks 1 & 2"""
