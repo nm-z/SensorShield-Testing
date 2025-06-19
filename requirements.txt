@@ -6,6 +6,7 @@ pyserial>=3.5
 
 # HTTP requests for web interface testing
 requests>=2.31.0
+types-requests
 
 # Bluetooth Low Energy communication
 bleak>=0.21.0
