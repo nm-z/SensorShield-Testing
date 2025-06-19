@@ -15,5 +15,5 @@ bleak>=0.21.0
 rich>=13.7.0
 
 # Interactive CLI menu
-python-cli-menu>=1.8.1
+InquirerPy>=0.3.4
 

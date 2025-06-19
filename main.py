@@ -41,7 +41,7 @@ from rich.panel import Panel
 from rich.tree import Tree
 
 try:
-    from pythonclimenu import menu as cli_menu
+    from InquirerPy import inquirer
     MENU_AVAILABLE = True
 except ImportError:
     MENU_AVAILABLE = False
@@ -645,21 +645,22 @@ Examples:
     ):
         if not MENU_AVAILABLE:
             raise RuntimeError(
-                "Interactive menu requested but python-cli-menu is not installed."
+                "Interactive menu requested but InquirerPy is not installed."
             )
 
-        selection = cli_menu(
-            title="Select Data Retrieval Mode",
-            options=[
-                "Flash dump",
-                "Serial monitor",
-                "WiFi access point",
-                "BLE live streaming",
-                "BLE dump",
-                "Exit",
-            ],
-            cursor_color="cyan",
-            title_color="light_green",
+        selection = (
+            inquirer.select(
+                message="Select Data Retrieval Mode",
+                choices=[
+                    "Flash dump",
+                    "Serial monitor",
+                    "WiFi access point",
+                    "BLE live streaming",
+                    "BLE dump",
+                    "Exit",
+                ],
+                pointer=">",
+            ).execute()
         )
 
         if selection == "Exit":
@@ -668,16 +669,20 @@ Examples:
             args.flash = True
         elif selection == "Serial monitor":
             args.serial = True
-            port = input(
-                f"Serial port (default {SensorDataRetriever(None).default_serial_port}): "
-            ).strip()
+            port = (
+                inquirer.text(
+                    message=f"Serial port (default {SensorDataRetriever(None).default_serial_port}): "
+                ).execute().strip()
+            )
             if port:
                 args.addr = port
         elif selection == "WiFi access point":
             args.access_point = True
-            ip = input(
-                f"AP IP (default {SensorDataRetriever(None).default_ap_ip}): "
-            ).strip()
+            ip = (
+                inquirer.text(
+                    message=f"AP IP (default {SensorDataRetriever(None).default_ap_ip}): "
+                ).execute().strip()
+            )
             if ip:
                 args.addr = ip
         elif selection == "BLE live streaming":
@@ -685,10 +690,18 @@ Examples:
         elif selection == "BLE dump":
             args.ble_dump = True
 
-        out_file = input("Output file (leave blank for none): ").strip()
+        out_file = (
+            inquirer.text(message="Output file (leave blank for none): ")
+            .execute()
+            .strip()
+        )
         if out_file:
             args.output = out_file
-        t_val = input(f"Timeout in seconds (default {args.timeout}): ").strip()
+        t_val = (
+            inquirer.text(
+                message=f"Timeout in seconds (default {args.timeout}): "
+            ).execute().strip()
+        )
         if t_val:
             try:
                 args.timeout = int(t_val)
@@ -766,14 +779,14 @@ if __name__ == "__main__":
         )
 
     if not MENU_AVAILABLE:
-        print("Installing python-cli-menu library...")
+        print("Installing InquirerPy library...")
         subprocess.run(
             [
                 sys.executable,
                 "-m",
                 "pip",
                 "install",
-                "python-cli-menu",
+                "InquirerPy",
                 "--break-system-packages",
             ],
             capture_output=True,

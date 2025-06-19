@@ -53,7 +53,7 @@ python3 test_sensor_device.py
 
 ### `main.py`
 
-Run without arguments to get an interactive menu powered by `python-cli-menu`:
+Run without arguments to get an interactive menu powered by `InquirerPy`:
 
 ```bash
 python3 main.py
