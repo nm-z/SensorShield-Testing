@@ -41,6 +41,12 @@ from rich.panel import Panel
 from rich.tree import Tree
 
 try:
+    from pythonclimenu import menu as cli_menu
+    MENU_AVAILABLE = True
+except ImportError:
+    MENU_AVAILABLE = False
+
+try:
     from bleak import BleakClient, BleakScanner
 
     BLEAK_AVAILABLE = True
@@ -585,7 +591,7 @@ Examples:
     )
 
     # Mode selection (mutually exclusive)
-    mode_group = parser.add_mutually_exclusive_group(required=True)
+    mode_group = parser.add_mutually_exclusive_group(required=False)
     mode_group.add_argument(
         "-f",
         "--flash",
@@ -633,7 +639,63 @@ Examples:
 
     args = parser.parse_args()
 
-    # Handle serial port specification
+    # Launch interactive menu if no mode provided
+    if not any(
+        [args.flash, args.serial, args.access_point, args.ble_live, args.ble_dump]
+    ):
+        if not MENU_AVAILABLE:
+            raise RuntimeError(
+                "Interactive menu requested but python-cli-menu is not installed."
+            )
+
+        selection = cli_menu(
+            title="Select Data Retrieval Mode",
+            options=[
+                "Flash dump",
+                "Serial monitor",
+                "WiFi access point",
+                "BLE live streaming",
+                "BLE dump",
+                "Exit",
+            ],
+            cursor_color="cyan",
+            title_color="light_green",
+        )
+
+        if selection == "Exit":
+            return 0
+        elif selection == "Flash dump":
+            args.flash = True
+        elif selection == "Serial monitor":
+            args.serial = True
+            port = input(
+                f"Serial port (default {SensorDataRetriever(None).default_serial_port}): "
+            ).strip()
+            if port:
+                args.addr = port
+        elif selection == "WiFi access point":
+            args.access_point = True
+            ip = input(
+                f"AP IP (default {SensorDataRetriever(None).default_ap_ip}): "
+            ).strip()
+            if ip:
+                args.addr = ip
+        elif selection == "BLE live streaming":
+            args.ble_live = True
+        elif selection == "BLE dump":
+            args.ble_dump = True
+
+        out_file = input("Output file (leave blank for none): ").strip()
+        if out_file:
+            args.output = out_file
+        t_val = input(f"Timeout in seconds (default {args.timeout}): ").strip()
+        if t_val:
+            try:
+                args.timeout = int(t_val)
+            except ValueError:
+                pass
+
+    # Handle serial port specification when argument provided
     if args.serial and isinstance(args.serial, str):
         args.addr = args.serial
 
@@ -698,6 +760,20 @@ if __name__ == "__main__":
                 "pip",
                 "install",
                 "rich",
+                "--break-system-packages",
+            ],
+            capture_output=True,
+        )
+
+    if not MENU_AVAILABLE:
+        print("Installing python-cli-menu library...")
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "python-cli-menu",
                 "--break-system-packages",
             ],
             capture_output=True,

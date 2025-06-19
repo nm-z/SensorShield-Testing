@@ -51,6 +51,16 @@ Run it with:
 python3 test_sensor_device.py
 ```
 
+### `main.py`
+
+Run without arguments to get an interactive menu powered by `python-cli-menu`:
+
+```bash
+python3 main.py
+```
+
+All command-line options still work for scripting purposes.
+
 ## Hardware Notes
 
 `Nates Docs.md` provides detailed information on supported storage (MicroSD, SPI flash, I²C EEPROM), wiring guidelines, BLE usage, and troubleshooting tips. It also describes a typical user workflow:
