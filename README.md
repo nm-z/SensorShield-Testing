@@ -17,6 +17,8 @@ The example sketch configures an ESP32 to:
 1. Initialize SPIFFS storage and create a JSON log file.
 2. Collect readings from temperature, humidity, and battery fuel-gauge sensors.
 3. Periodically store readings and broadcast them over BLE using a custom service.
+4. Host a Wi-Fi access point with an HTTP server for downloading logged data.
+5. Print `=== SENSOR READING ===` markers with each sensor update for easy monitoring.
 
 See the comments inside `SmartShield_ESP32_DAS_Test.ino` for configuration constants such as `LOG_INTERVAL` and BLE UUIDs.
 

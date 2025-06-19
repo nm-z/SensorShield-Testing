@@ -13,6 +13,8 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+#include <WiFi.h>
+#include <WebServer.h>
 
 // BLE Configuration
 #define SERVICE_UUID        "12345678-1234-5678-9abc-def123456789"
@@ -54,6 +56,30 @@ const char* bootCountFileName = "/boot_count.txt";
 unsigned long lastLogTime = 0;
 const unsigned long LOG_INTERVAL = 5000; // Log every 5 seconds
 int bootCount = 1;
+
+// WiFi access point and web server configuration
+const char* AP_SSID = "SensorShield";
+const char* AP_PASS = "esp32shield";
+WebServer server(80);
+
+void handleRoot() {
+  server.send(200, "text/plain", "Sensor Shield");
+}
+
+void handleData() {
+  server.send(200, "application/json", readStoredData());
+}
+
+void handleStatus() {
+  String json = "{";
+  json += "\"boot_count\":" + String(bootCount) + ",";
+  json += "\"uptime_seconds\":" + String(millis()/1000) + ",";
+  json += "\"free_memory\":" + String(ESP.getFreeHeap()) + ",";
+  json += "\"spiffs_used\":" + String(SPIFFS.usedBytes()) + ",";
+  json += "\"spiffs_total\":" + String(SPIFFS.totalBytes()) + ",";
+  json += "\"ble_connected\":" + String(deviceConnected ? "true" : "false") + "}";
+  server.send(200, "application/json", json);
+}
 
 // Function prototypes
 bool initSPIFFS();
@@ -349,6 +375,16 @@ void broadcastBLEData(const SensorData& data) {
 }
 
 void logSensorData(const SensorData& data) {
+  Serial.println("=== SENSOR READING ===");
+  if (!isnan(data.temperature)) {
+    Serial.printf("Temperature: %.2f C\n", data.temperature);
+  }
+  if (!isnan(data.humidity)) {
+    Serial.printf("Humidity: %.2f %%\n", data.humidity);
+  }
+  Serial.printf("Battery: %.2f V\n", data.batteryVoltage);
+  Serial.printf("Tamper: %d\n", data.tamperState);
+
   File file = SPIFFS.open(dataFileName, FILE_APPEND);
   if (!file) {
     Serial.println("ERROR:FILE_WRITE_FAILED");
@@ -465,13 +501,25 @@ void setup() {
   initSPIFFS();
   initBLE();
   initSensors();
-  
+
+  // Start WiFi access point and web server
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(AP_SSID, AP_PASS);
+  server.on("/", handleRoot);
+  server.on("/data", handleData);
+  server.on("/status", handleStatus);
+  server.begin();
+  Serial.println("Web server started");
+
   Serial.println("SYSTEM:READY");
 }
 
 void loop() {
   // Handle serial commands
   handleSerialCommands();
+
+  // Process HTTP requests
+  server.handleClient();
   
   // Handle BLE connection changes
   if (!deviceConnected && oldDeviceConnected) {
