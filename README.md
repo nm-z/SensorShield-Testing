@@ -2,6 +2,12 @@
 
 This repository contains a small suite of firmware and Python tools for an ESP32-based "Sensor Shield" prototype. The board logs environmental data and exposes it over USB, Wi‑Fi, or BLE.
 
+Before running the scripts, install the dependencies with:
+
+```bash
+pip install -r requirements.txt
+```
+
 ## Repository Layout
 
 - `Nates Docs.md` – hardware notes and usage tips. Includes wiring tables, storage recommendations, and a typical workflow for retrieving data.

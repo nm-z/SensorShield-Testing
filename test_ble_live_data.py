@@ -571,13 +571,5 @@ Examples:
         return 1
 
 if __name__ == "__main__":
-    # Check dependencies and install if needed
-    try:
-        from rich.console import Console
-    except ImportError:
-        print("Installing Rich library...")
-        subprocess.run([sys.executable, '-m', 'pip', 'install', 'rich', '--break-system-packages'],
-                      capture_output=True)
-
     exit_code = asyncio.run(main())
     sys.exit(exit_code)
