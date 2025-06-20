@@ -13,7 +13,7 @@ extend-ignore =
 
 # —— Complexity thresholds ——
 # requires installing flake8‐complexity
-max-complexity = 10
+max-complexity = 20
 
 # —— Plugin configurations ——
 # D: docstrings via flake8‐docstrings

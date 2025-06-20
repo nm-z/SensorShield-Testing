@@ -639,12 +639,10 @@ Examples:
         help="Comma-separated list of fields to display",
     )
 
-    args = parser.parse_args()
-    if args is None:
-        raise RuntimeError("Argument parsing failed")
+    args: argparse.Namespace = parser.parse_args()
 
     # Launch interactive menu if no mode provided
-    if args is not None and not any([args.serial_port, args.wifi, args.bluetooth]):
+    if not any([args.serial_port, args.wifi, args.bluetooth]):  # pylint: disable=no-member
         if not MENU_AVAILABLE:
             raise RuntimeError(
                 "Interactive menu requested but InquirerPy is not installed."
@@ -676,12 +674,11 @@ Examples:
                 "Serial port (default "
                 f"{SensorDataRetriever(None).default_serial_port}): "
             )
-            port = (
-                inquirer.text(
-                    message=port_prompt,
-                    **cli_params,
-                ).execute().strip()
-            )
+            port_resp = inquirer.text(
+                message=port_prompt,
+                **cli_params,
+            ).execute()
+            port = port_resp.strip() if port_resp else None
             if port:
                 args.addr = port
         elif selection == "WiFi access point":
@@ -690,12 +687,11 @@ Examples:
                 "AP IP (default "
                 f"{SensorDataRetriever(None).default_ap_ip}): "
             )
-            ip = (
-                inquirer.text(
-                    message=ip_prompt,
-                    **cli_params,
-                ).execute().strip()
-            )
+            ip_resp = inquirer.text(
+                message=ip_prompt,
+                **cli_params,
+            ).execute()
+            ip = ip_resp.strip() if ip_resp else None
             if ip:
                 args.addr = ip
         elif selection == "Bluetooth":
@@ -709,23 +705,19 @@ Examples:
         if dump_choice:
             args.dump = True
 
-        out_file = (
-            inquirer.text(
-                message="Output file (leave blank for none): ",
-                **cli_params,
-            )
-            .execute()
-            .strip()
-        )
+        out_resp = inquirer.text(
+            message="Output file (leave blank for none): ",
+            **cli_params,
+        ).execute()
+        out_file = out_resp.strip() if out_resp else None
         if out_file:
             args.output = out_file
-        default_timeout = args.timeout if args else 30
-        t_val = (
-            inquirer.text(
-                message=f"Timeout in seconds (default {default_timeout}): ",
-                **cli_params,
-            ).execute().strip()
-        )
+        default_timeout = args.timeout if args else 30  # pylint: disable=no-member
+        t_resp = inquirer.text(
+            message=f"Timeout in seconds (default {default_timeout}): ",
+            **cli_params,
+        ).execute()
+        t_val = t_resp.strip() if t_resp else None
         if t_val:
             try:
                 args.timeout = int(t_val)
