@@ -341,7 +341,7 @@ def test_ble_capability():
         )
 
         if result.stdout:
-            devices = result.stdout.strip().split("\n")
+            devices = result.stdout.splitlines()
         else:
             devices = []
         ble_devices = [
