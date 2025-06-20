@@ -19,6 +19,7 @@ InquirerPy>=0.3.4
 
 # Linting
 flake8==7.2.0
+pylint
 
 # Testing
 pytest
