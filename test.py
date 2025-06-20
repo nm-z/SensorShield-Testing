@@ -578,10 +578,12 @@ def print_task5_summary(results):
     print(
         f"   Status: {'✅ COMPLETED' if results['task5_workflow_demo'] else '❌ FAILED'}"
     )
-    print(
-        f"   Result: Complete workflow {('demonstrated successfully' if results['task5_workflow_demo'] else
-                                         "demonstration failed")}"
+    result_text = (
+        'demonstrated successfully'
+        if results['task5_workflow_demo']
+        else 'demonstration failed'
     )
+    print(f"   Result: Complete workflow {result_text}")
 
 
 def display_overall_status(completed_tasks):
