@@ -47,7 +47,7 @@ def _handle_total_space(line, timestamp, storage_capacity, spiffs_info):
             print(
                 f"✅ [{timestamp}] STORAGE CAPACITY DETECTED: {storage_capacity:,} bytes"
             )
-        except Exception:
+        except (ValueError, IndexError):
             pass
     return storage_capacity, spiffs_info
 
@@ -63,7 +63,7 @@ def _handle_initial_storage_used(line, timestamp, storage_capacity, spiffs_info)
                 print(
                     f"✅ [{timestamp}] STORAGE CAPACITY DETECTED: {storage_capacity:,} bytes"
                 )
-        except Exception:
+        except (ValueError, IndexError):
             pass
     return storage_capacity, spiffs_info
 
@@ -94,15 +94,26 @@ def _handle_storage_usage(line, timestamp, spiffs_info):
                 f"📊 [{timestamp}] Storage usage: {used:,}/{total:,} bytes ("
                 f"{(used / total * 100):.1f}%)"
             )
-        except Exception:
+        except (ValueError, IndexError):
             pass
     return spiffs_info
 
 
-def _process_serial_line(line, timestamp, das_confirmed, storage_capacity, spiffs_info, data_logged_count):
+def _process_serial_line(
+    line,
+    timestamp,
+    das_confirmed,
+    storage_capacity,
+    spiffs_info,
+    data_logged_count,
+):  # pylint: disable=too-many-arguments
     das_confirmed = _handle_das_capability(line, timestamp, das_confirmed)
-    storage_capacity, spiffs_info = _handle_total_space(line, timestamp, storage_capacity, spiffs_info)
-    storage_capacity, spiffs_info = _handle_initial_storage_used(line, timestamp, storage_capacity, spiffs_info)
+    storage_capacity, spiffs_info = _handle_total_space(
+        line, timestamp, storage_capacity, spiffs_info
+    )
+    storage_capacity, spiffs_info = _handle_initial_storage_used(
+        line, timestamp, storage_capacity, spiffs_info
+    )
     data_logged_count = _handle_data_logged(line, timestamp, data_logged_count)
     spiffs_info = _handle_storage_usage(line, timestamp, spiffs_info)
 
@@ -149,8 +160,8 @@ def test_das_capability_and_storage():
                                 spiffs_info, data_logged_count
                             )
 
-                except Exception as e:
-                    print(f"⚠️  Decode error: {e}")
+                except serial.SerialException as e:
+                    print(f"⚠️  Serial error: {e}")
 
             time.sleep(0.1)
 
@@ -169,7 +180,9 @@ def test_das_capability_and_storage():
         print("\n📋 TASK 2 CONFIRMATION - Maximum Storage:")
         if storage_capacity > 0:
             print(
-                f"✅ MAXIMUM STORAGE CAPACITY: {storage_capacity:,} bytes ({storage_capacity / 1024 / 1024:.2f} MB)"
+                "✅ MAXIMUM STORAGE CAPACITY: "
+                f"{storage_capacity:,} bytes "
+                f"({storage_capacity / 1024 / 1024:.2f} MB)"
             )
             estimated_readings = storage_capacity // 251  # ~251 bytes per JSON reading
             print(
@@ -186,7 +199,7 @@ def test_das_capability_and_storage():
     except serial.SerialException as e:
         print(f"❌ Serial connection error: {e}")
         return False, 0, False
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         print(f"❌ Unexpected error: {e}")
         return False, 0, False
 
@@ -220,7 +233,7 @@ def test_usb_accessibility():
         ser.close()
         usb_serial_works = lines_read > 0
 
-    except Exception as e:
+    except serial.SerialException as e:
         print(f"❌ USB Serial access failed: {e}")
         usb_serial_works = False
 
@@ -241,7 +254,7 @@ def test_usb_accessibility():
         else:
             print("⚠️  SensorShield WiFi AP not found in scan")
 
-    except Exception as e:
+    except subprocess.SubprocessError as e:
         print(f"⚠️  WiFi scan failed: {e}")
 
     # Test 3: Web interface access (if possible)
@@ -253,7 +266,7 @@ def test_usb_accessibility():
             web_interface_works = True
         else:
             print("⚠️  Web interface not accessible")
-    except Exception as e:
+    except requests.RequestException as e:
         print(f"⚠️  Web interface test failed: {e}")
 
     # Generate Task 3 confirmation
@@ -308,7 +321,7 @@ def test_ble_capability():
 
         ser.close()
 
-    except Exception as e:
+    except serial.SerialException as e:
         print(f"⚠️  BLE hardware check failed: {e}")
 
     # Check for BLE devices via system bluetooth
@@ -327,7 +340,10 @@ def test_ble_capability():
             ["bluetoothctl", "devices"], capture_output=True, text=True, timeout=5
         )
 
-        devices = result.stdout.strip().split("\n")
+        if result.stdout:
+            devices = result.stdout.strip().split("\n")
+        else:
+            devices = []
         ble_devices = [
             d
             for d in devices
@@ -348,7 +364,7 @@ def test_ble_capability():
 
         ble_scan_works = True
 
-    except Exception as e:
+    except subprocess.SubprocessError as e:
         print(f"⚠️  BLE scan failed: {e}")
 
     # Generate Task 4 confirmation
@@ -389,7 +405,7 @@ def _process_workflow_serial_line(line, workflow_results, sensor_readings):
             print(
                 f"✅ Storage write #{workflow_results['storage_writes']}: Data persisted to flash"
             )
-        except Exception:
+        except (json.JSONDecodeError, ValueError):
             pass
 
     elif "Temperature:" in line:
@@ -456,7 +472,9 @@ def demonstrate_das_workflow():
 
         if workflow_results["storage_writes"] > 0:
             print(
-                f"✅ FLASH STORAGE WRITES: {workflow_results['storage_writes']} successful writes to persistent storage"
+                "✅ FLASH STORAGE WRITES: "
+                f"{workflow_results['storage_writes']} "
+                "successful writes to persistent storage"
             )
         else:
             print("⚠️  Storage writes not observed")
@@ -484,7 +502,7 @@ def demonstrate_das_workflow():
 
         return workflow_success, workflow_results
 
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         print(f"❌ Workflow demonstration failed: {e}")
         return False, workflow_results
 
@@ -532,10 +550,12 @@ def execute_all_tests():
 def print_task1_summary(results):
     print("\n✅ TASK 1 - DAS Capability Verification:")
     print(
-        f"   Status: {'✅ COMPLETED' if results['task1_das_capability'] else '❌ FAILED'}"
+        "   Status: "
+        f"{'✅ COMPLETED' if results['task1_das_capability'] else '❌ FAILED'}"
     )
     print(
-        f"   Result: ESP32_Bat_Pro DAS capability {'confirmed' if results['task1_das_capability'] else 'not confirmed'}"
+        "   Result: ESP32_Bat_Pro DAS capability "
+        f"{'confirmed' if results['task1_das_capability'] else 'not confirmed'}"
     )
 
 
@@ -556,20 +576,24 @@ def print_task2_summary(results):
 def print_task3_summary(results):
     print("\n✅ TASK 3 - USB Accessibility:")
     print(
-        f"   Status: {'✅ COMPLETED' if results['task3_usb_access'] else '❌ FAILED'}"
+        "   Status: "
+        f"{'✅ COMPLETED' if results['task3_usb_access'] else '❌ FAILED'}"
     )
     print(
-        f"   Result: USB data access {'functional' if results['task3_usb_access'] else 'not working'}"
+        "   Result: USB data access "
+        f"{'functional' if results['task3_usb_access'] else 'not working'}"
     )
 
 
 def print_task4_summary(results):
     print("\n✅ TASK 4 - BLE Data Access:")
     print(
-        f"   Status: {'✅ COMPLETED' if results['task4_ble_capability'] else '❌ FAILED'}"
+        "   Status: "
+        f"{'✅ COMPLETED' if results['task4_ble_capability'] else '❌ FAILED'}"
     )
     print(
-        f"   Result: BLE capability {'confirmed' if results['task4_ble_capability'] else 'not confirmed'}"
+        "   Result: BLE capability "
+        f"{'confirmed' if results['task4_ble_capability'] else 'not confirmed'}"
     )
 
 
