@@ -676,12 +676,13 @@ Examples:
                 "Serial port (default "
                 f"{SensorDataRetriever(None).default_serial_port}): "
             )
-            port = (
+            port_resp = (
                 inquirer.text(
                     message=port_prompt,
                     **cli_params,
-                ).execute().strip()
+                ).execute()
             )
+            port = port_resp.strip() if port_resp else None
             if port:
                 args.addr = port
         elif selection == "WiFi access point":
@@ -690,12 +691,13 @@ Examples:
                 "AP IP (default "
                 f"{SensorDataRetriever(None).default_ap_ip}): "
             )
-            ip = (
+            ip_resp = (
                 inquirer.text(
                     message=ip_prompt,
                     **cli_params,
-                ).execute().strip()
+                ).execute()
             )
+            ip = ip_resp.strip() if ip_resp else None
             if ip:
                 args.addr = ip
         elif selection == "Bluetooth":
@@ -709,23 +711,23 @@ Examples:
         if dump_choice:
             args.dump = True
 
-        out_file = (
+        out_resp = (
             inquirer.text(
                 message="Output file (leave blank for none): ",
                 **cli_params,
-            )
-            .execute()
-            .strip()
+            ).execute()
         )
+        out_file = out_resp.strip() if out_resp else None
         if out_file:
             args.output = out_file
         default_timeout = args.timeout if args else 30
-        t_val = (
+        timeout_resp = (
             inquirer.text(
                 message=f"Timeout in seconds (default {default_timeout}): ",
                 **cli_params,
-            ).execute().strip()
+            ).execute()
         )
+        t_val = timeout_resp.strip() if timeout_resp else None
         if t_val:
             try:
                 args.timeout = int(t_val)
