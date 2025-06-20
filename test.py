@@ -340,10 +340,7 @@ def test_ble_capability():
             ["bluetoothctl", "devices"], capture_output=True, text=True, timeout=5
         )
 
-        if result.stdout:
-            devices = result.stdout.splitlines()
-        else:
-            devices = []
+        devices = result.stdout.splitlines() if result.stdout else []
         ble_devices = [
             d
             for d in devices

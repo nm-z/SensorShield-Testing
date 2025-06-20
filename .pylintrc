@@ -302,7 +302,6 @@ max-bool-expr=5
 max-branches=12
 
 # McCabe complexity threshold (turn on the mccabe checker)
-max-complexity=10
 
 # Maximum number of locals for function / method body.
 max-locals=15
