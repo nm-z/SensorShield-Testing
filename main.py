@@ -232,9 +232,11 @@ class SensorDataRetriever:
         try:
             ser = serial.Serial(port, 115200, timeout=1)
             self.console.print(f"🔌 Connected to {port}")
-            self.console.print(
-                f"📡 [bold cyan]Monitoring real-time data for {self.args.timeout}s (Press Ctrl+C to stop)...[/bold cyan]"
+            monitor_msg = (
+                "📡 [bold cyan]Monitoring real-time data for "
+                f"{self.args.timeout}s (Press Ctrl+C to stop)...[/bold cyan]"
             )
+            self.console.print(monitor_msg)
 
             start_time = time.time()
             with Live(self.create_status_tree("serial"), refresh_per_second=2) as live:
@@ -613,7 +615,11 @@ Examples:
     )
 
     # Optional modifiers
-    parser.add_argument("--dump", action="store_true", help="Retrieve historical data from device memory")
+    parser.add_argument(
+        "--dump",
+        action="store_true",
+        help="Retrieve historical data from device memory",
+    )
 
     # Optional arguments
     parser.add_argument(
@@ -634,9 +640,11 @@ Examples:
     )
 
     args = parser.parse_args()
+    if args is None:
+        raise RuntimeError("Argument parsing failed")
 
     # Launch interactive menu if no mode provided
-    if not any([args.serial_port, args.wifi, args.bluetooth]):
+    if args is not None and not any([args.serial_port, args.wifi, args.bluetooth]):
         if not MENU_AVAILABLE:
             raise RuntimeError(
                 "Interactive menu requested but InquirerPy is not installed."
@@ -645,7 +653,6 @@ Examples:
         cli_params = {
             "qmark": "?",
             "amark": "\u2713",
-            "pointer": ">",
         }
         selection = (
             inquirer.select(
@@ -665,9 +672,13 @@ Examples:
             sys.exit(0)
         elif selection == "Serial monitor":
             args.serial_port = True
+            port_prompt = (
+                "Serial port (default "
+                f"{SensorDataRetriever(None).default_serial_port}): "
+            )
             port = (
                 inquirer.text(
-                    message=f"Serial port (default {SensorDataRetriever(None).default_serial_port}): ",
+                    message=port_prompt,
                     **cli_params,
                 ).execute().strip()
             )
@@ -675,9 +686,13 @@ Examples:
                 args.addr = port
         elif selection == "WiFi access point":
             args.wifi = True
+            ip_prompt = (
+                "AP IP (default "
+                f"{SensorDataRetriever(None).default_ap_ip}): "
+            )
             ip = (
                 inquirer.text(
-                    message=f"AP IP (default {SensorDataRetriever(None).default_ap_ip}): ",
+                    message=ip_prompt,
                     **cli_params,
                 ).execute().strip()
             )
@@ -695,15 +710,19 @@ Examples:
             args.dump = True
 
         out_file = (
-            inquirer.text(message="Output file (leave blank for none): ", **cli_params)
+            inquirer.text(
+                message="Output file (leave blank for none): ",
+                **cli_params,
+            )
             .execute()
             .strip()
         )
         if out_file:
             args.output = out_file
+        default_timeout = args.timeout if args else 30
         t_val = (
             inquirer.text(
-                message=f"Timeout in seconds (default {args.timeout}): ",
+                message=f"Timeout in seconds (default {default_timeout}): ",
                 **cli_params,
             ).execute().strip()
         )
