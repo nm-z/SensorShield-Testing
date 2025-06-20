@@ -15,6 +15,7 @@ import json
 import subprocess
 import sys
 import time
+import os
 
 try:
     import serial  # type: ignore
@@ -542,8 +543,13 @@ class SensorDataRetriever:
         output_file = (
             self.args.output
             if self.args.output
-            else f"sensor_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            else os.path.join(
+                "Sensor-Data",
+                f"sensor_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            )
         )
+
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
         try:
             with open(output_file, "w") as f:
