@@ -51,7 +51,7 @@ struct SensorData {
 };
 
 // Storage configuration
-const char* dataFileName = "/sensor_data.json";
+const char* dataFileName = "/Sensor-Data/sensor_data.json";
 const char* bootCountFileName = "/boot_count.txt";
 unsigned long lastLogTime = 0;
 const unsigned long LOG_INTERVAL = 5000; // Log every 5 seconds
