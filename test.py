@@ -330,17 +330,18 @@ def test_ble_capability():
 
     try:
         # Try to scan for BLE devices
-        result = subprocess.run(
+        subprocess.run(
             ["bluetoothctl", "scan", "on"], capture_output=True, text=True, timeout=5
         )
 
         time.sleep(3)  # Allow time for scan
 
-        result = subprocess.run(
+        devices_result = subprocess.run(
             ["bluetoothctl", "devices"], capture_output=True, text=True, timeout=5
         )
 
         devices = result.stdout.splitlines() if result.stdout else []
+
         ble_devices = [
             d
             for d in devices
