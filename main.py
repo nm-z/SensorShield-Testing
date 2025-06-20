@@ -650,7 +650,10 @@ Examples:
         raise RuntimeError("Argument parsing failed")
 
     # Launch interactive menu if no mode provided
-    if args is not None and not any([args.serial_port, args.wifi, args.bluetooth]):
+    # argparse always returns a Namespace instance so args will never be None
+    # Directly check the selected mode flags to decide if the interactive menu
+    # should be shown.
+    if not any([args.serial_port, args.wifi, args.bluetooth]):
         if not MENU_AVAILABLE:
             raise RuntimeError(
                 "Interactive menu requested but InquirerPy is not installed."
@@ -726,7 +729,10 @@ Examples:
         out_file = out_resp.strip() if out_resp else None
         if out_file:
             args.output = out_file
-        default_timeout = args.timeout if args else 30
+        # ``args`` is guaranteed to be a Namespace object so ``args.timeout``
+        # will always be available. The check for ``args`` is therefore
+        # unnecessary and confuses static analyzers.
+        default_timeout = args.timeout
         timeout_resp = (
             inquirer.text(
                 message=f"Timeout in seconds (default {default_timeout}): ",

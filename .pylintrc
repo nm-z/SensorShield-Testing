@@ -302,7 +302,10 @@ max-bool-expr=5
 max-branches=12
 
 # McCabe complexity threshold (turn on the mccabe checker)
-max-complexity=10
+# Disable the McCabe complexity threshold since the mccabe extension is not
+# enabled in some environments, which causes an "unrecognized option" error
+# when parsing this configuration.
+# max-complexity=10
 
 # Maximum number of locals for function / method body.
 max-locals=15

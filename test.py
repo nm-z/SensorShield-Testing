@@ -340,7 +340,9 @@ def test_ble_capability():
             ["bluetoothctl", "devices"], capture_output=True, text=True, timeout=5
         )
 
-        if result.stdout:
+        # ``result.stdout`` is of type ``Optional[str]``. Explicitly handle the
+        # ``None`` case to avoid ``no-member`` lint errors.
+        if result.stdout is not None:
             devices = result.stdout.splitlines()
         else:
             devices = []
